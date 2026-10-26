@@ -13,7 +13,7 @@ rm -rf build && mkdir -p build/gen build/classes build/dex
 "$BT/aapt2" compile --dir res -o build/res.zip
 # minSdk 28: this build is for the Fire TV Cube 3rd gen (Fire OS 7, Android 9)
 "$BT/aapt2" link -o build/unsigned.apk -I "$JAR" --manifest AndroidManifest.xml --java build/gen \
-  --min-sdk-version 28 --target-sdk-version 22 --version-code 1 --version-name 1.0 build/res.zip
+  --min-sdk-version 28 --target-sdk-version 22 --version-code 1 --version-name 1.0 $([ -d assets ] && echo "-A assets") build/res.zip
 javac -nowarn --release 8 -classpath "$JAR" -d build/classes $(find src build/gen -name '*.java')
 "$BT/d8" --min-api 28 --lib "$JAR" --output build/dex $(find build/classes -name '*.class')
 (cd build/dex && zip -q ../unsigned.apk classes.dex)

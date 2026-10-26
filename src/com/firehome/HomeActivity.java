@@ -109,6 +109,7 @@ public class HomeActivity extends Activity {
     private static final long SETTINGS_PAUSE_MS = 4000L;
 
     private float dp;
+    private HomeBar bar;
     private FrameLayout root;
     private Bitmap picture;
     private LinearLayout row;
@@ -214,19 +215,32 @@ public class HomeActivity extends Activity {
         scrollLp.setMargins(0, px(6), 0, 0);
         bottom.addView(scroll, scrollLp);
 
-        LinearLayout buttons = new LinearLayout(this);
+        // Appstore and Settings at the left, the Home Assistant bar (if configured) in the middle, and the way out
+        // to Amazon's home apart at the far right
+        FrameLayout buttons = new FrameLayout(this);
+        buttons.setClipChildren(false);
+        buttons.setClipToPadding(false);   // a focused bar button grows past the row's edge
         buttons.setPadding(px(48), px(4), px(48), 0);
-        buttons.addView(pill("Appstore", v -> openAppstore()));
-        buttons.addView(pill("Settings", v -> openSettings()));
-        // the way out to Amazon's home sits apart, at the far right
-        buttons.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1f));
-        buttons.addView(pill("Fire TV home", v -> openAmazonHome()));
+        LinearLayout left = new LinearLayout(this);
+        left.addView(pill("Appstore", v -> openAppstore()));
+        left.addView(pill("Settings", v -> openSettings()));
+        buttons.addView(left, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
+        bar = HomeBar.load(this, dp, this::show);
+        if (bar != null) {
+            buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        }
+        buttons.addView(pill("Fire TV home", v -> openAmazonHome()), new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.END | Gravity.CENTER_VERTICAL));
         bottom.addView(buttons, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         FrameLayout.LayoutParams bottomLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
         bottomLp.setMargins(0, 0, 0, px(34));
+        root.setClipChildren(false);
         root.addView(bottom, bottomLp);
 
         setContentView(root);
@@ -240,6 +254,9 @@ public class HomeActivity extends Activity {
         if (focus != null) {
             focus.requestFocus();
         }
+        if (bar != null) {
+            bar.start();
+        }
         showWeather(Weather.saved(this));
         refreshWeather();
         // let this screen draw a frame first, so the swap from the overlay's picture can't be seen
@@ -250,6 +267,9 @@ public class HomeActivity extends Activity {
     protected void onPause() {
         super.onPause();
         main.removeCallbacks(refreshWeather);
+        if (bar != null) {
+            bar.stop();
+        }
         // the overlay shows this picture the next time Amazon's home is started. PixelCopy takes the screen as
         // drawn; drawing the views into a bitmap would lose rounded clipping and shadows, and RGB_565 bands the sky
         View window = getWindow().getDecorView();
@@ -269,6 +289,9 @@ public class HomeActivity extends Activity {
     /** Fetches new weather if what's shown is older than Weather.REFRESH_MS, and checks again later. */
     private void refreshWeather() {
         main.removeCallbacks(refreshWeather);
+        if (bar != null) {
+            bar.stop();
+        }
         main.postDelayed(refreshWeather, Weather.REFRESH_MS);
         Weather shown = Weather.saved(this);
         if (shown != null && System.currentTimeMillis() - shown.fetched < Weather.REFRESH_MS) {

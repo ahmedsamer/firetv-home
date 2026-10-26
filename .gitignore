@@ -2,3 +2,6 @@ build/
 *.apk
 *.keystore
 *.jks
+
+# private: MQTT login for the Home Assistant bar
+assets/
