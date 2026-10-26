@@ -4,6 +4,8 @@ A tvOS-style home screen for the Amazon Fire TV Cube (3rd gen, Fire OS 7.7 / And
 over a sky wallpaper, with no ads and no Amazon rows. Each app gets a logo tile in its brand colour and glows in
 that colour when selected. There's a 12-hour clock top left and the weather from Open-Meteo top right.
 
+![The home screen on a Fire TV Cube, with YouTube selected](docs/screenshot.png)
+
 Based on `firehome` from [debloat-fire-stick-claude-code](https://github.com/whyashthakker/debloat-fire-stick-claude-code)
 and [CleanYourTV](https://github.com/Gathin23/cleanyourtv) (MIT, see `LICENSE`).
 
@@ -58,3 +60,8 @@ Remove: `adb shell pm uninstall com.firehome`. Amazon's home is back on the next
 
 - Fire OS never passes the Home key to accessibility services, so the 5 s hold can only be hidden, not removed.
 - Settings opens inside Amazon's launcher, Amazon's banner included: on Fire OS 7 that's where Settings lives.
+
+## Contributing
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): summary`,
+for example `feat: add weather corner`, `fix(watcher): restart after update` or `docs: add screenshot`.
