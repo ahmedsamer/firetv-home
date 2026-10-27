@@ -183,6 +183,11 @@ class HomeBar {
     }
 
     private boolean active(Device d) {
+        if ((d.kind == BarIcon.Kind.BLIND || d.kind == BarIcon.Kind.CURTAIN) && d.position >= 0) {
+            // trust the position, not the state: a group of covers reports "open" as soon as one member sits at
+            // 1 %, so closed blackouts would show as open. Same 2 % rule as the HA automation.
+            return d.position > 2;
+        }
         return d.state.equals("on") || d.state.equals("open") || d.state.equals("opening");
     }
 
@@ -212,7 +217,7 @@ class HomeBar {
         } else if (d.state.equals("unavailable") || d.state.equals("unknown")) {
             what = "Unavailable right now.";
         } else if (d.kind == BarIcon.Kind.BLIND || d.kind == BarIcon.Kind.CURTAIN) {
-            String now = d.position > 0 && d.position < 100 ? d.position + "% open" : active(d) ? "Open" : "Closed";
+            String now = d.position > 2 && d.position < 98 ? d.position + "% open" : active(d) ? "Open" : "Closed";
             what = now + " · press select to " + (active(d) ? "close" : "open") + ".";
         } else {
             what = (active(d) ? "On" : "Off") + " · press select to turn " + (active(d) ? "off" : "on") + ".";
