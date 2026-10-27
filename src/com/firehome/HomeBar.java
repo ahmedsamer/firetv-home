@@ -45,7 +45,7 @@ class HomeBar {
     private static final Pattern POSITION = Pattern.compile("['\"]position['\"]\\s*:\\s*(-?\\d+)");
     // the same height as the Appstore and Settings pills next to it
     private static final int SIZE_DP = 33;
-    private static final float ON_GLOW = 0.4f;   // how strong an "on" device's yellow halo is (1 = full)
+    private static final int ON_ICON = 0xFFFFC857;   // an "on" device's icon; the same yellow as a room's dot
 
     private final Context context;
     private final float dp;
@@ -254,7 +254,6 @@ class HomeBar {
             if (d.button == null) {
                 d.icon = new BarIcon(d.kind);
                 d.button = circle(d.icon);
-                d.button.setShadow(0, ON_GLOW);   // a soft halo while on, not a full glow
                 d.button.setOnClickListener(v -> mqtt.publish("firetv/cmd/" + d.name, "toggle"));
                 d.button.setOnFocusChangeListener((v, has) -> {
                     d.focused = has;
@@ -421,12 +420,11 @@ class HomeBar {
         return n;
     }
 
-    private GradientDrawable glass(boolean on, boolean focused) {
+    private GradientDrawable glass(boolean focused) {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                on ? new int[] {0xFFF5D27E, 0xFFE8AE3A}
-                        : focused ? new int[] {0x66FFFFFF, 0x33FFFFFF} : new int[] {0x33FFFFFF, 0x17FFFFFF});
+                focused ? new int[] {0x66FFFFFF, 0x33FFFFFF} : new int[] {0x33FFFFFF, 0x17FFFFFF});
         bg.setCornerRadius(px(SIZE_DP) / 2f);
-        bg.setStroke(Math.max(1, px(focused ? 2 : 1)), focused ? 0xF2FFFFFF : on ? 0x00000000 : 0x40FFFFFF);
+        bg.setStroke(Math.max(1, px(focused ? 2 : 1)), focused ? 0xF2FFFFFF : 0x40FFFFFF);
         return bg;
     }
 
@@ -434,7 +432,7 @@ class HomeBar {
         if (r.button == null) {
             return;
         }
-        r.button.setBackground(glass(false, r.focused || open == r));
+        r.button.setBackground(glass(r.focused || open == r));
         r.dot.setVisibility(activeCount(r) > 0 ? View.VISIBLE : View.INVISIBLE);
         r.button.setAlpha(online ? 1f : 0.45f);
     }
@@ -445,12 +443,11 @@ class HomeBar {
         }
         boolean on = online && active(d);
         float level = d.position >= 0 ? d.position / 100f : (on ? 1f : 0f);
-        // like Control Center: an "on" button is solid warm yellow with a dark icon, an off one is glass
-        d.icon.set(on, level, 0xFF4A3300);
+        // every button is glass; an "on" device shows it in its icon, drawn in warm yellow
+        d.icon.set(on, level, ON_ICON);
         boolean usable = online && !d.state.equals("unavailable") && !d.state.equals("unknown");
-        d.button.setBackground(glass(on, d.focused));
+        d.button.setBackground(glass(d.focused));
         d.button.setAlpha(usable ? 1f : 0.45f);
-        d.button.setGlowing(on);
     }
 
     private void describe(Room r) {
