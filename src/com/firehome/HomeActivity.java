@@ -228,6 +228,7 @@ public class HomeActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
         bar = HomeBar.load(this, dp, this::show);
         if (bar != null) {
+            bar.start();   // one connection for the app's lifetime: pausing on every Home press would race it
             buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
         }
@@ -254,9 +255,6 @@ public class HomeActivity extends Activity {
         if (focus != null) {
             focus.requestFocus();
         }
-        if (bar != null) {
-            bar.start();
-        }
         showWeather(Weather.saved(this));
         refreshWeather();
         // let this screen draw a frame first, so the swap from the overlay's picture can't be seen
@@ -267,9 +265,6 @@ public class HomeActivity extends Activity {
     protected void onPause() {
         super.onPause();
         main.removeCallbacks(refreshWeather);
-        if (bar != null) {
-            bar.stop();
-        }
         // the overlay shows this picture the next time Amazon's home is started. PixelCopy takes the screen as
         // drawn; drawing the views into a bitmap would lose rounded clipping and shadows, and RGB_565 bands the sky
         View window = getWindow().getDecorView();
@@ -289,9 +284,6 @@ public class HomeActivity extends Activity {
     /** Fetches new weather if what's shown is older than Weather.REFRESH_MS, and checks again later. */
     private void refreshWeather() {
         main.removeCallbacks(refreshWeather);
-        if (bar != null) {
-            bar.stop();
-        }
         main.postDelayed(refreshWeather, Weather.REFRESH_MS);
         Weather shown = Weather.saved(this);
         if (shown != null && System.currentTimeMillis() - shown.fetched < Weather.REFRESH_MS) {
@@ -314,6 +306,14 @@ public class HomeActivity extends Activity {
         String condition = weather.condition();
         weatherLine.setText((condition.isEmpty() ? "" : condition + "  ·  ")
                 + "H " + Weather.degrees(weather.high) + "  L " + Weather.degrees(weather.low));
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (bar != null) {
+            bar.stop();
+        }
+        super.onDestroy();
     }
 
     @Override

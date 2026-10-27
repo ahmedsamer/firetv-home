@@ -178,13 +178,14 @@ class HomeBar {
         }
         boolean on = online && active(d);
         float level = d.position >= 0 ? d.position / 100f : (on ? 1f : 0f);
-        d.icon.set(on, level, 0xFFFFC857);
+        // like Control Center: an "on" button is solid warm yellow with a dark icon, an off one is glass
+        d.icon.set(on, level, 0xFF4A3300);
         boolean usable = online && !d.state.equals("unavailable") && !d.state.equals("unknown");
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                d.focused ? new int[] {0x66FFFFFF, 0x33FFFFFF}
-                        : on ? new int[] {0x40FFC857, 0x1FFFC857} : new int[] {0x33FFFFFF, 0x17FFFFFF});
+                on ? new int[] {0xFFFFE08A, 0xFFFFC23D}
+                        : d.focused ? new int[] {0x66FFFFFF, 0x33FFFFFF} : new int[] {0x33FFFFFF, 0x17FFFFFF});
         bg.setCornerRadius(px(23));
-        bg.setStroke(Math.max(1, px(1)), d.focused ? 0xCCFFFFFF : on ? 0x99FFC857 : 0x40FFFFFF);
+        bg.setStroke(Math.max(1, px(d.focused ? 2 : 1)), d.focused ? 0xF2FFFFFF : on ? 0x00000000 : 0x40FFFFFF);
         d.button.setBackground(bg);
         d.button.setAlpha(usable ? 1f : 0.45f);
         d.button.setGlowing(on);

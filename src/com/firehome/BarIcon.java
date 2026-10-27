@@ -11,7 +11,7 @@ import android.graphics.drawable.Drawable;
 
 /**
  * Line icons for the Home Assistant bar, drawn in code: a bulb, a fan, a blind and a curtain. "On" (or open) draws
- * them in the accent colour with a fill; off draws them as white outlines. A blind or curtain shows how far open it
+ * them in the accent colour (dark, for the bar's yellow "on" button) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {

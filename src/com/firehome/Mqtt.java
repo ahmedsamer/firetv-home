@@ -1,5 +1,7 @@
 package com.firehome;
 
+import android.util.Log;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -82,8 +84,8 @@ class Mqtt {
         while (running) {
             try {
                 session();
-            } catch (Exception e) {
-                // fall through to a reconnect
+            } catch (Throwable e) {
+                Log.w("FireHomeMqtt", "session ended: " + e);
             }
             closeQuietly();
             listener.disconnected();
@@ -94,7 +96,10 @@ class Mqtt {
     }
 
     private void session() throws IOException {
-        socket = new Socket();
+        Socket socket = new Socket();
+        synchronized (this) {
+            this.socket = socket;
+        }
         socket.connect(new InetSocketAddress(host, port), 5000);
         socket.setSoTimeout(KEEPALIVE_S * 1500);
         InputStream in = socket.getInputStream();
