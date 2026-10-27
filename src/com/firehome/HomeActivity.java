@@ -120,6 +120,7 @@ public class HomeActivity extends Activity {
     // the clock sits top centre between the climate and the departures
     private static final int CLOCK_SP = 46;
     private static final int DAY_TINT = 0xFF9EDDE2;   // the "27th" over the month: a pale cyan, a shade off the white
+    private static final float CAP_HEIGHT = 0.71f;   // Roboto's capital height, as a share of the text size
     private static final float UNIT_SIZE = 0.7f;
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
@@ -296,7 +297,7 @@ public class HomeActivity extends Activity {
         style(about, 15, 0xD9FFFFFF, "sans-serif");
         about.setShadowLayer(px(8), 0, px(1), 0x66000000);
         LinearLayout heading = new LinearLayout(this);
-        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setGravity(Gravity.TOP);   // the caption is placed by its top margin, set below
         heading.setPadding(px(52), 0, px(52), 0);
         LinearLayout named = new LinearLayout(this);
         named.setOrientation(LinearLayout.VERTICAL);
@@ -312,6 +313,17 @@ public class HomeActivity extends Activity {
         named.addView(about, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         heading.addView(named);
+        // the caption runs from the top of the name's capitals to the baseline of the line about it, and starts there
+        named.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            int capTop = title.getTop() + title.getBaseline() - Math.round(CAP_HEIGHT * title.getTextSize());
+            int baseline = about.getTop() + about.getBaseline();
+            ((VerticalText) caption).fitTo(baseline - capTop);
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) caption.getLayoutParams();
+            if (lp.topMargin != capTop) {
+                lp.topMargin = capTop;
+                caption.setLayoutParams(lp);
+            }
+        });
         bottom.addView(heading);
 
         row = new LinearLayout(this);
