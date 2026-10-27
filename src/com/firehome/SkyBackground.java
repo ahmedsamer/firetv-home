@@ -15,15 +15,16 @@ import java.util.Random;
 /**
  * A tvOS-style wallpaper drawn in code: a sky gradient, a soft glow low on the horizon, stars, and a darker band
  * along the bottom so the app row and its text stay readable. Four looks, for the phases of the day (see Sun):
- * night (deep and starry), morning (pale dawn), day (clear blue, no stars) and evening (the warm original).
+ * night (deep and starry), morning (pale dawn), day (clear, no stars) and evening (a warm glow low down). All are
+ * tinted cyan/teal to match the room's furniture.
  */
 class SkyBackground extends Drawable {
     enum Phase {
         //        sky, top to bottom                                                     glow       stars bottom band
-        NIGHT(new int[] {0xFF060C1E, 0xFF0D2146, 0xFF183B66, 0xFF2A5F88, 0xFF23506F}, 0x59E6A27A, 140, 0xB3000814),
-        MORNING(new int[] {0xFF2D4A78, 0xFF5F78AC, 0xFFB79BB8, 0xFFEFC2A2, 0xFFD9A98C}, 0x80FFD2A6, 0, 0xA6101830),
-        DAY(new int[] {0xFF2672C8, 0xFF3F8EDB, 0xFF6CAFE8, 0xFF9BCDF2, 0xFF7DB6E0}, 0x66FFF6D8, 0, 0xB3082040),
-        EVENING(new int[] {0xFF0A1630, 0xFF143A66, 0xFF2D78A8, 0xFF5BA7C9, 0xFF3F7FA0}, 0x8CF2B48A, 90, 0xA6000814);
+        NIGHT(new int[] {0xFF03121A, 0xFF062838, 0xFF0B4352, 0xFF136270, 0xFF0F515E}, 0x5970E6E0, 140, 0xB3000E14),
+        MORNING(new int[] {0xFF1B4658, 0xFF3A7D8C, 0xFF86C2C4, 0xFFD6E8DA, 0xFFB4D4CA}, 0x80FFEFD0, 0, 0xA6082028),
+        DAY(new int[] {0xFF0A7484, 0xFF1A92A2, 0xFF4CB6C0, 0xFF8AD4D8, 0xFF68C0C6}, 0x66F0FFF8, 0, 0xB3032830),
+        EVENING(new int[] {0xFF051824, 0xFF0B3A4A, 0xFF1C707E, 0xFF4AA6A6, 0xFF36888A}, 0x8CF2BC8A, 90, 0xA6000E14);
 
         final int[] sky;
         final int glow;
