@@ -138,6 +138,7 @@ public class HomeActivity extends Activity {
     private TextView about;
     private String lastOpened;
     private View climate;
+    private TextView salat;
     private Departures bus;
     private Departures metro;
     private TextView climateTemp;
@@ -216,8 +217,18 @@ public class HomeActivity extends Activity {
         corner.addView(date);
         corner.addView(time);
         corner.addView(half);
-        // top centre, so the right corner is free (for transport departures later)
-        root.addView(corner, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
+        // under the clock, centred: the next prayer from Home Assistant (Mawaqit), "Fajr 4:59 AM"; empty until known
+        salat = new TextView(this);
+        style(salat, 17, 0xD9FFFFFF, "sans-serif-medium");
+        salat.setShadowLayer(px(8), 0, px(1), 0x66000000);
+        LinearLayout clockColumn = new LinearLayout(this);
+        clockColumn.setOrientation(LinearLayout.VERTICAL);
+        clockColumn.setGravity(Gravity.CENTER_HORIZONTAL);
+        clockColumn.addView(corner, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        clockColumn.addView(salat, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(clockColumn, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
 
         // the indoor climate from Home Assistant, top left, the same size and shadow as the clock; empty until there is
         // something to show
@@ -323,6 +334,8 @@ public class HomeActivity extends Activity {
                     bus.update(payload);
                 } else if (name.equals("metro")) {
                     metro.update(payload);
+                } else if (name.equals("salat")) {
+                    showSalat(payload);
                 }
             });
             showClimate(getSharedPreferences("climate", MODE_PRIVATE).getString("json", null), false);
@@ -474,6 +487,33 @@ public class HomeActivity extends Activity {
             line.setSpan(new android.text.style.ForegroundColorSpan(AMBER), start, line.length(),
                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+    }
+
+    /**
+     * Home Assistant's {"name": "fajr", "ts": epoch seconds} as "Fajr 4:59 AM", the name in the day's pale cyan;
+     * anything unreadable leaves the line as it was.
+     */
+    private void showSalat(String payload) {
+        String name;
+        long ts;
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            name = json.getString("name");
+            ts = json.getLong("ts");
+        } catch (org.json.JSONException e) {
+            return;
+        }
+        if (name.isEmpty() || ts <= 0) {
+            salat.setText("");
+            return;
+        }
+        String time = new java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(new java.util.Date(ts * 1000));
+        android.text.SpannableStringBuilder line = new android.text.SpannableStringBuilder();
+        line.append(Character.toUpperCase(name.charAt(0)) + name.substring(1));
+        line.setSpan(new android.text.style.ForegroundColorSpan(DAY_TINT), 0, line.length(),
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        line.append("  ").append(time);
+        salat.setText(line);
     }
 
     /** Today as "27th" (the day of the month with its English ordinal) and "Oct" (the month's short name). */
