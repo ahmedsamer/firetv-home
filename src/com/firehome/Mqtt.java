@@ -9,11 +9,14 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Just enough MQTT 3.1.1 for the Home Assistant bar: connect with a username and password, subscribe to one filter,
- * publish at QoS 0, keep alive. Reconnects on its own after any failure, every few seconds. Not thread-safe for
- * callers other than publish(), which is safe from any thread.
+ * publish at QoS 0, keep alive. Reconnects on its own after any failure, every few seconds. publish() may be called
+ * from any thread, the main thread included: the write itself happens on a background sender (Android forbids
+ * network I/O on the main thread and would kill the app).
  */
 class Mqtt {
     interface Listener {
@@ -35,6 +38,11 @@ class Mqtt {
     private volatile boolean running;
     private volatile OutputStream out;
     private Socket socket;
+    private final ExecutorService sender = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "mqtt-send");
+        t.setDaemon(true);
+        return t;
+    });
 
     Mqtt(String host, int port, String user, String password, String filter, Listener listener) {
         this.host = host;
@@ -60,8 +68,12 @@ class Mqtt {
         closeQuietly();
     }
 
-    /** QoS 0 publish; silently dropped while not connected. */
-    synchronized void publish(String topic, String payload) {
+    /** QoS 0 publish, sent in the background; silently dropped while not connected. */
+    void publish(String topic, String payload) {
+        sender.execute(() -> send(topic, payload));
+    }
+
+    private synchronized void send(String topic, String payload) {
         OutputStream o = out;
         if (o == null) {
             return;
