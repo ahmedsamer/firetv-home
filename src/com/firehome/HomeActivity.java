@@ -347,8 +347,8 @@ public class HomeActivity extends Activity {
         buttons.setClipToPadding(false);   // a focused bar button grows past the row's edge
         buttons.setPadding(px(48), px(4), px(48), 0);
         LinearLayout left = new LinearLayout(this);
-        left.addView(pill("Appstore", v -> openAppstore()));
-        left.addView(pill("Settings", v -> openSettings()));
+        left.addView(pill("Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
+        left.addView(pill("Settings", "SYSTEM", "Fire TV settings, network and apps.", v -> openSettings()));
         buttons.addView(left, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
         bar = HomeBar.load(this, dp, this::show);
@@ -369,7 +369,7 @@ public class HomeActivity extends Activity {
             buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
         }
-        buttons.addView(pill("Fire TV home", v -> openAmazonHome()), new FrameLayout.LayoutParams(
+        buttons.addView(pill("Fire TV home", "AMAZON", "Amazon's home screen, for 10 minutes.", v -> openAmazonHome()), new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.END | Gravity.CENTER_VERTICAL));
         bottom.addView(buttons, new LinearLayout.LayoutParams(
@@ -867,6 +867,19 @@ public class HomeActivity extends Activity {
         } else if (tile.getLeft() - margin < x) {
             scroll.smoothScrollTo(Math.max(0, tile.getLeft() - margin), 0);
         }
+    }
+
+    /** A pill that, like an app tile, describes itself above the row while focused. */
+    private TextView pill(String label, String captionText, String aboutText, View.OnClickListener click) {
+        TextView pill = pill(label, click);
+        View.OnFocusChangeListener look = pill.getOnFocusChangeListener();
+        pill.setOnFocusChangeListener((v, focused) -> {
+            look.onFocusChange(v, focused);
+            if (focused) {
+                show(captionText, label, aboutText);
+            }
+        });
+        return pill;
     }
 
     private TextView pill(String label, View.OnClickListener click) {
