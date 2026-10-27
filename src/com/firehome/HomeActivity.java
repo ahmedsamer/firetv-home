@@ -197,13 +197,15 @@ public class HomeActivity extends Activity {
         style(climateTemp, 56, 0xFFFFFFFF, "sans-serif-medium");
         climateTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
         climateTemp.setPadding(px(14), 0, 0, 0);
-        now.addView(climateTemp);
+        LinearLayout reading = new LinearLayout(this);   // horizontal and baseline-aligned, like the clock's "PM"
+        reading.addView(climateTemp);
+        now.addView(reading);
         // how the home compares with outside: "↑13°" (coral) means 13° warmer at home than outside, "↓" (blue) cooler
         outsideDiff = new TextView(this);
         style(outsideDiff, 30, 0xD9FFFFFF, "sans-serif-medium");
         outsideDiff.setShadowLayer(px(8), 0, px(1), 0x66000000);
         outsideDiff.setPadding(px(18), 0, 0, 0);
-        now.addView(outsideDiff);
+        reading.addView(outsideDiff);
         climateLine = new TextView(this);
         style(climateLine, 20, 0xD9FFFFFF, "sans-serif-medium");
         climateLine.setShadowLayer(px(8), 0, px(1), 0x66000000);
