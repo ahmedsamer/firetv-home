@@ -95,7 +95,8 @@ class HomeBar {
         switch (name) {
             case "ceiling": return BarIcon.Kind.CEILING;
             case "desk": return BarIcon.Kind.DESK;
-            case "bedside": return BarIcon.Kind.BEDSIDE;
+            case "bed":
+            case "bedside": return BarIcon.Kind.BED;
             case "fan": return BarIcon.Kind.FAN;
             case "blind": return BarIcon.Kind.BLIND;
             case "curtain": return BarIcon.Kind.CURTAIN;

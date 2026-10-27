@@ -10,13 +10,13 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 
 /**
- * Line icons for the Home Assistant bar, drawn in code: a bulb, a ceiling pendant, a desk lamp, a bedside lamp, a fan,
- * a blind and a curtain. "On" (or open) draws
+ * Line icons for the Home Assistant bar, drawn in code: a bulb, a ceiling pendant, a desk, a bed, a fan, a blind and a
+ * curtain. "On" (or open) draws
  * them in the accent colour (dark, for the bar's yellow "on" button) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {
-    enum Kind { LIGHT, CEILING, DESK, BEDSIDE, FAN, BLIND, CURTAIN }
+    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN }
 
     private final Kind kind;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -76,41 +76,37 @@ class BarIcon extends Drawable {
                 break;
             }
             case DESK: {
-                // base, two arm segments and a tilted head, like an architect's lamp
-                canvas.drawLine(s * 0.14f, s * 0.9f, s * 0.56f, s * 0.9f, line);
-                canvas.drawLine(s * 0.3f, s * 0.9f, s * 0.2f, s * 0.5f, line);
-                canvas.drawLine(s * 0.2f, s * 0.5f, s * 0.56f, s * 0.24f, line);
-                canvas.save();
-                canvas.rotate(35f, s * 0.6f, s * 0.24f);
-                Path head = new Path();
-                head.moveTo(s * 0.5f, s * 0.16f);
-                head.lineTo(s * 0.7f, s * 0.16f);
-                head.lineTo(s * 0.86f, s * 0.42f);
-                head.lineTo(s * 0.34f, s * 0.42f);
-                head.close();
+                // a desk with a monitor on it: top, two legs, a drawer on the right
+                RectF screen = new RectF(s * 0.3f, s * 0.12f, s * 0.7f, s * 0.42f);
+                float r = s * 0.04f;
                 if (on) {
                     fill.setAlpha(220);
-                    canvas.drawPath(head, fill);
+                    canvas.drawRoundRect(screen, r, r, fill);
                 }
-                canvas.drawPath(head, line);
-                canvas.restore();
+                canvas.drawRoundRect(screen, r, r, line);
+                canvas.drawLine(s * 0.5f, s * 0.42f, s * 0.5f, s * 0.52f, line);
+                canvas.drawLine(s * 0.06f, s * 0.54f, s * 0.94f, s * 0.54f, line);
+                canvas.drawLine(s * 0.14f, s * 0.54f, s * 0.14f, s * 0.9f, line);
+                canvas.drawRect(s * 0.6f, s * 0.54f, s * 0.86f, s * 0.9f, line);
+                canvas.drawLine(s * 0.68f, s * 0.68f, s * 0.78f, s * 0.68f, line);
                 break;
             }
-            case BEDSIDE: {
-                // a table lamp: tapered shade on a stem and a round foot
-                Path shade = new Path();
-                shade.moveTo(s * 0.34f, s * 0.1f);
-                shade.lineTo(s * 0.66f, s * 0.1f);
-                shade.lineTo(s * 0.82f, s * 0.48f);
-                shade.lineTo(s * 0.18f, s * 0.48f);
-                shade.close();
+            case BED: {
+                // side view: headboard, mattress with a pillow, legs
+                canvas.drawLine(s * 0.1f, s * 0.24f, s * 0.1f, s * 0.86f, line);
+                RectF mattress = new RectF(s * 0.1f, s * 0.52f, s * 0.9f, s * 0.72f);
                 if (on) {
                     fill.setAlpha(220);
-                    canvas.drawPath(shade, fill);
+                    canvas.drawRect(mattress, fill);
                 }
-                canvas.drawPath(shade, line);
-                canvas.drawLine(s * 0.5f, s * 0.48f, s * 0.5f, s * 0.8f, line);
-                canvas.drawLine(s * 0.3f, s * 0.88f, s * 0.7f, s * 0.88f, line);
+                canvas.drawRect(mattress, line);
+                RectF pillow = new RectF(s * 0.18f, s * 0.38f, s * 0.42f, s * 0.52f);
+                float r = s * 0.06f;
+                if (on) {
+                    canvas.drawRoundRect(pillow, r, r, fill);
+                }
+                canvas.drawRoundRect(pillow, r, r, line);
+                canvas.drawLine(s * 0.9f, s * 0.72f, s * 0.9f, s * 0.86f, line);
                 break;
             }
             case FAN:
