@@ -178,14 +178,15 @@ public class HomeActivity extends Activity {
         date.setShadowLayer(px(8), 0, px(1), 0x66000000);
         corner.addView(clock);
         corner.addView(date);
-        root.addView(corner, at(Gravity.TOP | Gravity.START, 48, 30));
+        corner.setGravity(Gravity.END);
+        root.addView(corner, at(Gravity.TOP | Gravity.END, 48, 30));
 
-        // the indoor climate from Home Assistant, top right, sized and shadowed like the clock; empty until there is
+        // the indoor climate from Home Assistant, top left, sized and shadowed like the clock; empty until there is
         // something to show
         LinearLayout climate = new LinearLayout(this);
         this.climate = climate;
         climate.setOrientation(LinearLayout.VERTICAL);
-        climate.setGravity(Gravity.END);
+        climate.setGravity(Gravity.START);
         LinearLayout now = new LinearLayout(this);
         now.setGravity(Gravity.CENTER_VERTICAL);
         ImageView house = new ImageView(this);
@@ -212,7 +213,7 @@ public class HomeActivity extends Activity {
         climate.addView(now);
         climate.addView(climateLine);
         climate.setVisibility(View.INVISIBLE);
-        root.addView(climate, at(Gravity.TOP | Gravity.END, 48, 30));
+        root.addView(climate, at(Gravity.TOP | Gravity.START, 48, 30));
 
         // everything else stacks up from the bottom edge: what's focused, the app row, the buttons
         LinearLayout bottom = new LinearLayout(this);
