@@ -211,9 +211,10 @@ class HomeBar {
         panel.setBackground(bg);
         panel.setElevation(px(24));   // above the app tiles, which lift when focused
         panel.setVisibility(View.GONE);
-        // leaving the panel (up or down to its room button, or anywhere else) closes it
+        // the panel stays open while focus is on it or on its room button; anywhere else (another room, the pills)
+        // closes it
         panel.getViewTreeObserver().addOnGlobalFocusChangeListener((was, now) -> {
-            if (open != null && now != null && !isInside(now, panel)) {
+            if (open != null && now != null && !isInside(now, panel) && now != open.button) {
                 closeRoom(false);
             }
         });
@@ -291,7 +292,9 @@ class HomeBar {
         panel.setAlpha(0f);
         panel.setTranslationY(px(12));
         panel.animate().alpha(1f).translationY(0).setDuration(180).start();
-        r.devices.get(0).button.requestFocus();
+        // focus stays on the room button, so a double press can't toggle anything; up moves into the panel
+        r.button.setNextFocusUpId(r.devices.get(0).button.getId());
+        describe(r);
     }
 
     private void closeRoom(boolean refocus) {
@@ -302,6 +305,12 @@ class HomeBar {
         }
         panel.setVisibility(View.GONE);
         panel.removeAllViews();
+        if (r != null) {
+            r.button.setNextFocusUpId(View.NO_ID);   // up goes back to the app row
+            if (r.focused) {
+                describe(r);
+            }
+        }
         if (r != null && refocus) {
             r.button.requestFocus();
         }
@@ -448,7 +457,8 @@ class HomeBar {
             what = "Not connected to Home Assistant.";
         } else {
             int n = activeCount(r);
-            what = (n == 0 ? "Everything off" : n + " on") + " · press select to show controls.";
+            what = (n == 0 ? "Everything off" : n + " on")
+                    + (open == r ? " · press up to choose." : " · press select to show controls.");
         }
         focus.show("ROOMS", r.label, what);
     }
