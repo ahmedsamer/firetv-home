@@ -253,16 +253,20 @@ public class HomeActivity extends Activity {
         climate.setVisibility(View.INVISIBLE);
         root.addView(climate, at(Gravity.TOP | Gravity.START, 48, 30));
 
-        // the next departures, top right: bus 147 and the U8 side by side, filled in from Home Assistant
+        // the next departures, top right: bus 147 over the U8, right-aligned, a step smaller than the climate block
         LinearLayout transport = new LinearLayout(this);
-        bus = new Departures(this, dp, "147");
-        metro = new Departures(this, dp, "U8");
-        transport.addView(bus.view());
+        transport.setOrientation(LinearLayout.VERTICAL);
+        transport.setGravity(Gravity.END);
+        Departures.Sizes sizes = new Departures.Sizes(34, 17, 15, 28);
+        bus = new Departures(this, dp, BarIcon.Kind.BUS, "147", sizes);
+        metro = new Departures(this, dp, BarIcon.Kind.METRO, "U8", sizes);
+        transport.addView(bus.view(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams metroLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        metroLp.setMargins(px(32), 0, 0, 0);
+        metroLp.setMargins(0, px(14), 0, 0);
         transport.addView(metro.view(), metroLp);
-        root.addView(transport, at(Gravity.TOP | Gravity.END, 48, 34));
+        root.addView(transport, at(Gravity.TOP | Gravity.END, 48, 30));
 
         // everything else stacks up from the bottom edge: what's focused, the app row, the buttons
         LinearLayout bottom = new LinearLayout(this);

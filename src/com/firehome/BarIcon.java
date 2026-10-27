@@ -11,12 +11,12 @@ import android.graphics.drawable.Drawable;
 
 /**
  * Line icons for the Home Assistant bar, drawn in code: devices (a bulb, a ceiling pendant, a desk, a bed, a fan, a
- * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), and a house for the indoor climate. "On" (or open) draws
+ * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, and a bus and an underground train for the departures. "On" (or open) draws
  * them in the accent colour (dark, for the bar's yellow "on" button) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {
-    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME }
+    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME, BUS, METRO }
 
     private final Kind kind;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -163,6 +163,28 @@ class BarIcon extends Drawable {
                 walls.lineTo(s * 0.8f, s * 0.38f);
                 canvas.drawPath(walls, line);
                 canvas.drawRect(s * 0.42f, s * 0.62f, s * 0.58f, s * 0.9f, line);
+                break;
+            }
+            case BUS: {
+                // front view: body, windscreen, headlights, wheels
+                float r = s * 0.1f;
+                canvas.drawRoundRect(new RectF(s * 0.18f, s * 0.08f, s * 0.82f, s * 0.8f), r, r, line);
+                canvas.drawRect(s * 0.28f, s * 0.2f, s * 0.72f, s * 0.46f, line);
+                canvas.drawCircle(s * 0.32f, s * 0.64f, s * 0.04f, fill);
+                canvas.drawCircle(s * 0.68f, s * 0.64f, s * 0.04f, fill);
+                canvas.drawLine(s * 0.3f, s * 0.8f, s * 0.3f, s * 0.92f, line);
+                canvas.drawLine(s * 0.7f, s * 0.8f, s * 0.7f, s * 0.92f, line);
+                break;
+            }
+            case METRO: {
+                // front view of an underground train on its rails: rounded cab, window, lights
+                float r = s * 0.18f;
+                canvas.drawRoundRect(new RectF(s * 0.2f, s * 0.06f, s * 0.8f, s * 0.76f), r, r, line);
+                canvas.drawLine(s * 0.3f, s * 0.34f, s * 0.7f, s * 0.34f, line);
+                canvas.drawCircle(s * 0.35f, s * 0.56f, s * 0.04f, fill);
+                canvas.drawCircle(s * 0.65f, s * 0.56f, s * 0.04f, fill);
+                canvas.drawLine(s * 0.34f, s * 0.76f, s * 0.22f, s * 0.92f, line);
+                canvas.drawLine(s * 0.66f, s * 0.76f, s * 0.78f, s * 0.92f, line);
                 break;
             }
             case FAN:
