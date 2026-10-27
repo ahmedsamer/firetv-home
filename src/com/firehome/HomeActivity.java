@@ -112,7 +112,8 @@ public class HomeActivity extends Activity {
 
     // tvOS gives the focused tile a soft neutral shadow; true brings back a glow in each app's colour
     private static final boolean COLOURED_GLOW = false;
-    // the indoor climate corner: above these, the value is shown in AMBER
+    // the indoor climate corner: outside these, the value is shown in AMBER
+    private static final double HUMIDITY_LOW = 40;
     private static final double HUMIDITY_HIGH = 60;
     private static final double CO2_HIGH = 1000;
     private static final int AMBER = 0xFFFFB13B;
@@ -346,10 +347,10 @@ public class HomeActivity extends Activity {
             return;   // the corner keeps what it showed rather than an error
         }
         climateTemp.setText(String.format(java.util.Locale.ROOT, "%.1f°", temperature));
-        // a value outside the comfortable range turns amber: humidity above 60 %, CO₂ above 1000 ppm
+        // a value outside the comfortable range turns amber: humidity outside 40-60 %, CO₂ above 1000 ppm
         android.text.SpannableStringBuilder line = new android.text.SpannableStringBuilder();
         if (!Double.isNaN(humidity)) {
-            append(line, "Humidity " + Math.round(humidity) + "%", humidity > HUMIDITY_HIGH);
+            append(line, "Humidity " + Math.round(humidity) + "%", humidity < HUMIDITY_LOW || humidity > HUMIDITY_HIGH);
         }
         if (!Double.isNaN(co2)) {
             if (line.length() > 0) {
