@@ -110,7 +110,11 @@ public class HomeActivity extends Activity {
     // Fire OS opens Settings by starting Amazon's home with a "show Settings" extra; long enough for that to land
     private static final long SETTINGS_PAUSE_MS = 4000L;
 
+    // tvOS gives the focused tile a soft neutral shadow; true brings back a glow in each app's colour
+    private static final boolean COLOURED_GLOW = false;
+
     private float dp;
+    private int lastFocusedTile = -1;
     private HomeBar bar;
     private SkyBackground.Phase phase;
     private FrameLayout root;
@@ -443,20 +447,20 @@ public class HomeActivity extends Activity {
 
     private View tile(String pkg, ResolveInfo ri) {
         int[] look = LOGO_TILES.containsKey(pkg) ? LOGO_TILES.get(pkg) : LOGO_DEFAULT;
-        // the focused tile glows in the app's colour: the same colour as the glow behind its logo
-        GlowTile tile = new GlowTile(this, look[2], px(22), px(16));
+        // the focused tile casts a soft shadow, as on tvOS (or glows in the app's colour, see COLOURED_GLOW)
+        GlowTile tile = new GlowTile(this, COLOURED_GLOW ? look[2] : 0xFF000000, px(22), px(14));
+        if (!COLOURED_GLOW) {
+            tile.setShadow(px(16), 0.6f);
+        }
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(184), px(104));
         lp.setMargins(px(8), 0, px(8), 0);
         tile.setLayoutParams(lp);
-        GradientDrawable idle = glass(14, false);
-        GradientDrawable lit = glass(14, true);
-        tile.setBackground(idle);
-        tile.setPadding(px(3), px(3), px(3), px(3));
-        tile.setElevation(px(4));
+        // full-bleed artwork, no rim, as on tvOS
+        tile.setCameraDistance(px(1400) * 8f);
 
         tile.addView(logoTile(ri, look), new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        return finishTile(tile, pkg, ri, idle, lit);
+        return finishTile(tile, pkg, ri);
     }
 
     /** The app's logo, large, on a gradient in its colours (see LOGO_TILES). */
@@ -464,7 +468,7 @@ public class HomeActivity extends Activity {
         FrameLayout art = new FrameLayout(this);
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[] {colours[0], colours[1]});
-        bg.setCornerRadius(px(11));
+        bg.setCornerRadius(px(14));
         GradientDrawable glow = new GradientDrawable();
         glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
         glow.setColors(new int[] {colours[2], colours[2] & 0x00FFFFFF});
@@ -604,16 +608,26 @@ public class HomeActivity extends Activity {
         return new float[] {left / (float) n, top / (float) n, (right + 1) / (float) n, (bottom + 1) / (float) n};
     }
 
-    private View finishTile(GlowTile tile, String pkg, ResolveInfo ri, GradientDrawable idle, GradientDrawable lit) {
+    private View finishTile(GlowTile tile, String pkg, ResolveInfo ri) {
         String name = label(ri);
         String[] info = ABOUT.containsKey(pkg) ? ABOUT.get(pkg) : new String[] {"OPEN", "Press select to open."};
         tile.setFocusable(true);
         tile.setOnClickListener(v -> open(pkg));
         tile.setOnFocusChangeListener((v, focused) -> {
-            tile.setBackground(focused ? lit : idle);
             tile.setGlowing(focused);
-            float scale = focused ? 1.14f : 1f;
-            v.animate().scaleX(scale).scaleY(scale).translationZ(focused ? px(12) : 0).setDuration(180).start();
+            if (focused) {
+                // tvOS-style: the tile springs up, tips slightly as if pushed in the direction you moved, settles
+                // flat, and a sheen of light crosses it
+                int index = row.indexOfChild(v);
+                v.setRotationY(lastFocusedTile < 0 || index == lastFocusedTile ? 0f : index > lastFocusedTile ? -6f : 6f);
+                lastFocusedTile = index;
+                v.animate().scaleX(1.14f).scaleY(1.14f).rotationY(0f).translationZ(px(12)).setDuration(420)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start();
+                tile.sweep();
+            } else {
+                v.animate().scaleX(1f).scaleY(1f).rotationY(0f).translationZ(0).setDuration(220)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+            }
             if (focused) {
                 show(info[0], name, info[1]);
                 v.post(() -> keepVisible(v));
