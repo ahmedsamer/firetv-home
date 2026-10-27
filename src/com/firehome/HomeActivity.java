@@ -119,7 +119,6 @@ public class HomeActivity extends Activity {
     private static final int AMBER = 0xFFFFB13B;
     // the clock sits top centre between the climate and (later) transport, a little smaller than they are
     private static final int CLOCK_SP = 46;
-    private static final float MONTH_CAPITAL = 1.35f;
     private static final float UNIT_SIZE = 0.7f;
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
@@ -163,27 +162,16 @@ public class HomeActivity extends Activity {
         TextView day = new TextView(this);
         style(day, CLOCK_SP * 2 / 7, 0xD9FFFFFF, "sans-serif-medium");
         day.setShadowLayer(px(8), 0, px(1), 0x66000000);
-        // "Oct" with a bigger capital: two views on one baseline (a size span in one view got clipped)
-        TextView capital = new TextView(this);
-        style(capital, CLOCK_SP * 4 / 7 * MONTH_CAPITAL, 0xE6FFFFFF, "sans-serif-medium");
-        capital.setShadowLayer(px(10), 0, px(1), 0x66000000);
         TextView month = new TextView(this);
         style(month, CLOCK_SP * 4 / 7, 0xE6FFFFFF, "sans-serif-medium");
         month.setShadowLayer(px(10), 0, px(1), 0x66000000);
-        LinearLayout monthRow = new LinearLayout(this);
-        monthRow.addView(capital);
-        monthRow.addView(month);
-        monthRow.setBaselineAlignedChildIndex(1);
+        month.setIncludeFontPadding(false);
         day.setIncludeFontPadding(false);
         LinearLayout date = new LinearLayout(this);
         date.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams dayLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        dayLp.gravity = Gravity.END;   // the day sits over the end of the month
-        date.addView(day, dayLp);
-        // wrap_content: a vertical LinearLayout's default is match_parent, which squeezed the month to the day's width
-        date.addView(monthRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+        date.setGravity(Gravity.CENTER_HORIZONTAL);
+        date.addView(day);
+        date.addView(month);
         date.setBaselineAlignedChildIndex(1);   // the month is what lines up with the time
         date.setPadding(0, 0, px(14), 0);
         TextClock time = new TextClock(this);
@@ -203,10 +191,10 @@ public class HomeActivity extends Activity {
 
             @Override
             public void afterTextChanged(android.text.Editable text) {
-                showDate(day, capital, month);
+                showDate(day, month);
             }
         });
-        showDate(day, capital, month);
+        showDate(day, month);
         TextClock half = new TextClock(this);
         half.setFormat12Hour("a");
         half.setFormat24Hour("a");
@@ -453,15 +441,13 @@ public class HomeActivity extends Activity {
         }
     }
 
-    /** Today as "27th" (the day of the month with its English ordinal) and "O" + "ct" (the month's short name). */
-    private static void showDate(TextView day, TextView capital, TextView month) {
+    /** Today as "27th" (the day of the month with its English ordinal) and "Oct" (the month's short name). */
+    private static void showDate(TextView day, TextView month) {
         Calendar now = Calendar.getInstance();
         int d = now.get(Calendar.DAY_OF_MONTH);
         String suffix = d >= 11 && d <= 13 ? "th" : d % 10 == 1 ? "st" : d % 10 == 2 ? "nd" : d % 10 == 3 ? "rd" : "th";
         day.setText(d + suffix);
-        String name = now.getDisplayName(Calendar.MONTH, Calendar.SHORT, java.util.Locale.ENGLISH);
-        capital.setText(name.substring(0, 1));
-        month.setText(name.substring(1));
+        month.setText(now.getDisplayName(Calendar.MONTH, Calendar.SHORT, java.util.Locale.ENGLISH));
     }
 
     /** The part of the day now, from Open-Meteo's sunrise/sunset for today when the weather has them. */
