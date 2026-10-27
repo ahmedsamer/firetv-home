@@ -117,6 +117,7 @@ public class HomeActivity extends Activity {
     private static final double HUMIDITY_HIGH = 60;
     private static final double CO2_HIGH = 1000;
     private static final int AMBER = 0xFFFFB13B;
+    private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
 
     private float dp;
     private int lastFocusedTile = -1;
@@ -132,6 +133,9 @@ public class HomeActivity extends Activity {
     private String lastOpened;
     private View climate;
     private TextView climateTemp;
+    private ImageView outsideIcon;
+    private TextView outsideDiff;
+    private double indoor = Double.NaN;
     private TextView climateLine;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable refreshWeather = this::refreshWeather;
@@ -192,6 +196,17 @@ public class HomeActivity extends Activity {
         climateTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
         climateTemp.setPadding(px(14), 0, 0, 0);
         now.addView(climateTemp);
+        // the sky outside and the difference to it: "↓13°" means 13° colder outside than in
+        outsideIcon = new ImageView(this);
+        outsideIcon.setLayerType(View.LAYER_TYPE_SOFTWARE, null);   // the icon's soft shadow needs software drawing
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(px(40), px(40));
+        iconLp.setMargins(px(22), 0, 0, 0);
+        now.addView(outsideIcon, iconLp);
+        outsideDiff = new TextView(this);
+        style(outsideDiff, 30, 0xD9FFFFFF, "sans-serif-medium");
+        outsideDiff.setShadowLayer(px(8), 0, px(1), 0x66000000);
+        outsideDiff.setPadding(px(6), 0, 0, 0);
+        now.addView(outsideDiff);
         climateLine = new TextView(this);
         style(climateLine, 20, 0xD9FFFFFF, "sans-serif-medium");
         climateLine.setShadowLayer(px(8), 0, px(1), 0x66000000);
@@ -286,6 +301,7 @@ public class HomeActivity extends Activity {
             focus.requestFocus();
         }
         followSun();
+        showOutside();
         refreshWeather();
         // let this screen draw a frame first, so the swap from the overlay's picture can't be seen
         root.postDelayed(HomeWatcher::hideOverlay, 150);
@@ -321,7 +337,26 @@ public class HomeActivity extends Activity {
         if (shown != null && System.currentTimeMillis() - shown.fetched < Weather.REFRESH_MS) {
             return;
         }
-        new Thread(() -> Weather.fetch(getApplicationContext()), "weather").start();
+        new Thread(() -> {
+            if (Weather.fetch(getApplicationContext()) != null) {
+                main.post(this::showOutside);
+            }
+        }, "weather").start();
+    }
+
+    /** The outdoor sky and the outdoor-minus-indoor difference, beside the indoor temperature; hidden while either is
+     *  missing or the weather is over an hour old. */
+    private void showOutside() {
+        Weather w = Weather.saved(this);
+        boolean show = w != null && !Double.isNaN(indoor) && System.currentTimeMillis() - w.fetched < OUTSIDE_MAX_AGE_MS;
+        outsideIcon.setVisibility(show ? View.VISIBLE : View.GONE);
+        outsideDiff.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (!show) {
+            return;
+        }
+        outsideIcon.setImageDrawable(new WeatherIcon(w.kind(), w.day));
+        long diff = Math.round(w.temperature - indoor);
+        outsideDiff.setText(diff == 0 ? "=" : (diff < 0 ? "↓" : "↑") + Math.abs(diff) + "°");
     }
 
     /**
@@ -347,6 +382,8 @@ public class HomeActivity extends Activity {
             return;   // the corner keeps what it showed rather than an error
         }
         climateTemp.setText(String.format(java.util.Locale.ROOT, "%.1f°", temperature));
+        indoor = temperature;
+        showOutside();
         // a value outside the comfortable range turns amber: humidity outside 40-60 %, CO₂ above 1000 ppm
         android.text.SpannableStringBuilder line = new android.text.SpannableStringBuilder();
         if (!Double.isNaN(humidity)) {

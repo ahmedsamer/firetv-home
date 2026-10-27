@@ -12,8 +12,8 @@ import java.net.URL;
 
 /**
  * Today's weather from Open-Meteo (free, no account or key) for central Berlin (rounded on purpose; set your own
- * coordinates here). Only its sunrise and sunset are used, for the wallpaper (see Sun); the corner shows the indoor
- * climate from Home Assistant instead. The last answer is kept in preferences; on any failure it simply stays.
+ * coordinates here). Its sunrise and sunset drive the wallpaper (see Sun); the corner shows the indoor climate from
+ * Home Assistant, with the outdoor sky and how much colder or warmer it is outside next to it. The last answer is kept in preferences; on any failure it simply stays.
  */
 class Weather {
     private static final String URL = "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.40"
@@ -84,6 +84,17 @@ class Weather {
                 http.disconnect();
             }
         }
+    }
+
+    WeatherIcon.Kind kind() {
+        if (code == 0) return WeatherIcon.Kind.CLEAR;
+        if (code == 1 || code == 2) return WeatherIcon.Kind.PARTLY;
+        if (code == 3) return WeatherIcon.Kind.CLOUDY;
+        if (code == 45 || code == 48) return WeatherIcon.Kind.FOG;
+        if ((code >= 71 && code <= 77) || code == 85 || code == 86) return WeatherIcon.Kind.SNOW;
+        if (code >= 95) return WeatherIcon.Kind.THUNDER;
+        if (code >= 51) return WeatherIcon.Kind.RAIN;
+        return WeatherIcon.Kind.CLOUDY;
     }
 
     /** Minute of the day of a "yyyy-MM-ddTHH:mm" time if it falls on `today` ("yyyy-MM-dd"), else -1. */
