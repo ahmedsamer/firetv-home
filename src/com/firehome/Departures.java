@@ -20,67 +20,41 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * One stop's next departures, for the top-right corner, laid out like the climate block (a step smaller): a line icon (a bus or an
- * underground train) and the minutes to the next departure in big digits, and below a small line per direction with
- * the line's name in a light shade of its colour, the direction and its next departure ("U8 Wittenau 5 min"). Home Assistant publishes
+ * One stop's next departures, for the top-right corner: a line icon (a bus or an underground train) beside a small
+ * line per direction with the line's name in a light shade of its colour, the direction and its next departure
+ * ("U8 Wittenau 5 min"). Home Assistant publishes
  * {"line", "color", "walk", "deps": [{"ts": epoch seconds, "dir", "delay": seconds, "x": cancelled}]} to
  * firetv/state/bus and firetv/state/metro; the minutes are worked out here, so tick() keeps them counting down
  * between updates. Departures sooner than the walk to the stop, and cancelled ones, are left out.
  */
 class Departures {
-    /** Text sizes (sp) and icon size (dp), so the corner can match the climate block. */
-    static final class Sizes {
-        final float big;
-        final float line;
-        final int icon;
-
-        Sizes(float big, float line, int icon) {
-            this.big = big;
-            this.line = line;
-            this.icon = icon;
-        }
-    }
-
     private static final int MAX_DIRECTIONS = 2;
     private static final int LATE_S = 120;   // a departure this late shows its minutes in amber
     private static final int AMBER = 0xFFFFB13B;
 
     private final float dp;
     private final LinearLayout view;
-    private final TextView minutes;
     private final TextView details;
     private final String fallbackLine;
     private JSONObject data;
 
-    Departures(Context context, float dp, BarIcon.Kind kind, String fallbackLine, Sizes sizes) {
+    Departures(Context context, float dp, BarIcon.Kind kind, String fallbackLine, float textSp, int iconDp) {
         this.dp = dp;
         this.fallbackLine = fallbackLine;
         view = new LinearLayout(context);
-        view.setOrientation(LinearLayout.VERTICAL);
-        view.setGravity(Gravity.END);   // right-aligned, against the screen's edge
-        LinearLayout now = new LinearLayout(context);
-        now.setGravity(Gravity.CENTER_VERTICAL);
+        view.setGravity(Gravity.CENTER_VERTICAL);
         ImageView icon = new ImageView(context);
         BarIcon drawable = new BarIcon(kind);
         drawable.set(false, 0f, 0);
         icon.setImageDrawable(drawable);
-        now.addView(icon, new LinearLayout.LayoutParams(px(sizes.icon), px(sizes.icon)));
-        minutes = text(context, sizes.big, 0xFFFFFFFF, 12, 2);
-        minutes.setPadding(px(10), 0, 0, 0);
-        LinearLayout reading = new LinearLayout(context);   // baseline-aligned, like the climate's reading
-        reading.addView(minutes);
-        now.addView(reading);
-        details = text(context, sizes.line, 0xD9FFFFFF, 8, 1);
-        details.setGravity(Gravity.END);   // one direction per line, right-aligned
-        // wrap_content: a vertical LinearLayout's default is match_parent, which defeats the right alignment
-        view.addView(now, wrap());
-        view.addView(details, wrap());
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(px(iconDp), px(iconDp));
+        iconLp.setMargins(0, 0, px(10), 0);
+        view.addView(icon, iconLp);
+        details = text(context, textSp, 0xD9FFFFFF, 8, 1);
+        details.setGravity(Gravity.END);   // one direction per line, right-aligned against the screen's edge
+        // the text takes the rest of the width, so stacked stops keep their icons in one column at the left
+        view.addView(details, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         view.setVisibility(View.GONE);
-    }
-
-    private static LinearLayout.LayoutParams wrap() {
-        return new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
     }
 
     View view() {
@@ -108,9 +82,8 @@ class Departures {
 
         long now = System.currentTimeMillis() / 1000;
         int walk = data.optInt("walk", 0);
-        // the next departure per direction, in the order the directions first come up, and the soonest of all
+        // the next departure per direction, in the order the directions first come up
         Map<String, int[]> next = new LinkedHashMap<>();
-        int[] soonest = null;
         JSONArray deps = data.optJSONArray("deps");
         for (int i = 0; deps != null && i < deps.length(); i++) {
             JSONObject d = deps.optJSONObject(i);
@@ -122,38 +95,29 @@ class Departures {
                 continue;
             }
             int[] dep = {left, d.optInt("delay", 0) >= LATE_S ? 1 : 0};
-            if (soonest == null || left < soonest[0]) {
-                soonest = dep;
-            }
             String direction = shorten(d.optString("dir", ""));
             if (!next.containsKey(direction) && next.size() < MAX_DIRECTIONS) {
                 next.put(direction, dep);
             }
         }
 
-        SpannableStringBuilder big = new SpannableStringBuilder();
         SpannableStringBuilder small = new SpannableStringBuilder();
-        if (soonest == null) {
-            big.append("–");
+        if (next.isEmpty()) {
             small.append("No departures soon");
-        } else {
-            appendMinutes(big, soonest);
-            appendUnit(big, 0.45f);
-            for (Map.Entry<String, int[]> e : next.entrySet()) {
-                if (small.length() > 0) {
-                    small.append('\n');
-                }
-                int at = small.length();
-                small.append(name);
-                small.setSpan(new ForegroundColorSpan(shade), at, small.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                small.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), at, small.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                small.append(' ').append(e.getKey()).append(' ');
-                appendMinutes(small, e.getValue());
-                appendUnit(small, 0.7f);
-            }
         }
-        minutes.setText(big);
+        for (Map.Entry<String, int[]> e : next.entrySet()) {
+            if (small.length() > 0) {
+                small.append('\n');
+            }
+            int at = small.length();
+            small.append(name);
+            small.setSpan(new ForegroundColorSpan(shade), at, small.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            small.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), at, small.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            small.append(' ').append(e.getKey()).append(' ');
+            appendMinutes(small, e.getValue());
+            appendUnit(small, 0.7f);
+        }
         details.setText(small);
         view.setVisibility(View.VISIBLE);
     }

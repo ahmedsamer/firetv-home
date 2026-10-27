@@ -253,16 +253,16 @@ public class HomeActivity extends Activity {
         climate.setVisibility(View.INVISIBLE);
         root.addView(climate, at(Gravity.TOP | Gravity.START, 48, 30));
 
-        // the next departures, top right: bus 147 over the U8, right-aligned, a step smaller than the climate block
+        // the next departures, top right: bus 147 over the U8, right-aligned, each a line icon beside its directions
         LinearLayout transport = new LinearLayout(this);
         transport.setOrientation(LinearLayout.VERTICAL);
         transport.setGravity(Gravity.END);
-        Departures.Sizes sizes = new Departures.Sizes(28, 13, 24);
-        bus = new Departures(this, dp, BarIcon.Kind.BUS, "147", sizes);
-        metro = new Departures(this, dp, BarIcon.Kind.METRO, "U8", sizes);
-        transport.addView(bus.view(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        bus = new Departures(this, dp, BarIcon.Kind.BUS, "147", 15, 26);
+        metro = new Departures(this, dp, BarIcon.Kind.METRO, "U8", 15, 26);
+        // both as wide as the wider one, so their icons line up
+        transport.addView(bus.view(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        LinearLayout.LayoutParams metroLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        LinearLayout.LayoutParams metroLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         metroLp.setMargins(0, px(10), 0, 0);
         transport.addView(metro.view(), metroLp);
