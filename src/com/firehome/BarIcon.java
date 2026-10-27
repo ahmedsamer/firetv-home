@@ -205,15 +205,18 @@ class BarIcon extends Drawable {
                     canvas.restore();
                 }
                 break;
-            case BLIND:
-                canvas.drawLine(s * 0.12f, s * 0.14f, s * 0.88f, s * 0.14f, line);
-                // slats cover the closed part; an open blind keeps only its top slats
+            case BLIND: {
+                // a window with the blind rolled up to the top; slats cover the closed part, so open is an empty
+                // window and closed is a full one
+                float r = s * 0.06f;
+                canvas.drawRoundRect(new RectF(s * 0.16f, s * 0.12f, s * 0.84f, s * 0.88f), r, r, line);
+                canvas.drawLine(s * 0.16f, s * 0.24f, s * 0.84f, s * 0.24f, line);   // the roll
                 float bottom = s * (0.86f - 0.62f * level);
-                for (float y = s * 0.28f; y <= bottom + 1; y += s * 0.14f) {
-                    canvas.drawLine(s * 0.2f, y, s * 0.8f, y, line);
+                for (float y = s * 0.38f; y <= bottom + 1; y += s * 0.14f) {
+                    canvas.drawLine(s * 0.26f, y, s * 0.74f, y, line);
                 }
-                canvas.drawLine(s * 0.5f, s * 0.14f, s * 0.5f, Math.max(bottom, s * 0.28f), line);
                 break;
+            }
             case CURTAIN:
                 canvas.drawLine(s * 0.1f, s * 0.14f, s * 0.9f, s * 0.14f, line);
                 float panel = s * (0.38f - 0.24f * level);
