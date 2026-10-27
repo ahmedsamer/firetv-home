@@ -257,14 +257,14 @@ public class HomeActivity extends Activity {
         LinearLayout transport = new LinearLayout(this);
         transport.setOrientation(LinearLayout.VERTICAL);
         transport.setGravity(Gravity.END);
-        Departures.Sizes sizes = new Departures.Sizes(34, 17, 15, 28);
+        Departures.Sizes sizes = new Departures.Sizes(28, 14, 13, 24);
         bus = new Departures(this, dp, BarIcon.Kind.BUS, "147", sizes);
         metro = new Departures(this, dp, BarIcon.Kind.METRO, "U8", sizes);
         transport.addView(bus.view(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams metroLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        metroLp.setMargins(0, px(14), 0, 0);
+        metroLp.setMargins(0, px(10), 0, 0);
         transport.addView(metro.view(), metroLp);
         root.addView(transport, at(Gravity.TOP | Gravity.END, 48, 30));
 
