@@ -40,6 +40,7 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -125,6 +126,7 @@ public class HomeActivity extends Activity {
     private TextView weatherLine;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable refreshWeather = this::refreshWeather;
+    private final Runnable followSun = this::followSun;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -133,7 +135,9 @@ public class HomeActivity extends Activity {
         startService(new Intent(this, HomeWatcher.class));
 
         root = new FrameLayout(this);
-        root.setBackground(new SkyBackground());
+        // the wallpaper follows the sun here (Sun), checked once a minute
+        phase = sunPhase();
+        root.setBackground(new SkyBackground(phase));
 
         LinearLayout corner = new LinearLayout(this);
         corner.setOrientation(LinearLayout.VERTICAL);
@@ -250,10 +254,6 @@ public class HomeActivity extends Activity {
             panelLp.setMargins(0, 0, 0, px(88));
             root.addView(bar.panel(), panelLp);
             bar.dimWhileOpen(scroll);
-            // the wallpaper follows Home Assistant's time of day; the last one seen is shown at once on start
-            phase = SkyBackground.Phase.of(getSharedPreferences("sky", MODE_PRIVATE).getString("timeofday", null));
-            root.setBackground(new SkyBackground(phase));
-            bar.onTimeOfDay(this::setTimeOfDay);
         }
         root.setClipChildren(false);
         root.addView(bottom, bottomLp);
@@ -269,6 +269,7 @@ public class HomeActivity extends Activity {
         if (focus != null) {
             focus.requestFocus();
         }
+        followSun();
         showWeather(Weather.saved(this));
         refreshWeather();
         // let this screen draw a frame first, so the swap from the overlay's picture can't be seen
@@ -279,6 +280,7 @@ public class HomeActivity extends Activity {
     protected void onPause() {
         super.onPause();
         main.removeCallbacks(refreshWeather);
+        main.removeCallbacks(followSun);
         // the overlay shows this picture the next time Amazon's home is started. PixelCopy takes the screen as
         // drawn; drawing the views into a bitmap would lose rounded clipping and shadows, and RGB_565 bands the sky
         View window = getWindow().getDecorView();
@@ -298,6 +300,7 @@ public class HomeActivity extends Activity {
     /** Fetches new weather if what's shown is older than Weather.REFRESH_MS, and checks again later. */
     private void refreshWeather() {
         main.removeCallbacks(refreshWeather);
+        main.removeCallbacks(followSun);
         main.postDelayed(refreshWeather, Weather.REFRESH_MS);
         Weather shown = Weather.saved(this);
         if (shown != null && System.currentTimeMillis() - shown.fetched < Weather.REFRESH_MS) {
@@ -322,10 +325,21 @@ public class HomeActivity extends Activity {
                 + "H " + Weather.degrees(weather.high) + "  L " + Weather.degrees(weather.low));
     }
 
-    /** Cross-fades the wallpaper to the look for this time of day. */
-    private void setTimeOfDay(String value) {
-        getSharedPreferences("sky", MODE_PRIVATE).edit().putString("timeofday", value).apply();
-        SkyBackground.Phase next = SkyBackground.Phase.of(value);
+    /** The part of the day now, from Open-Meteo's sunrise/sunset for today when the weather has them. */
+    private SkyBackground.Phase sunPhase() {
+        Calendar now = Calendar.getInstance();
+        Weather w = Weather.saved(this);
+        String today = String.format(java.util.Locale.ROOT, "%04d-%02d-%02d", now.get(Calendar.YEAR),
+                now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
+        return Sun.phase(now, w == null ? -1 : Weather.minuteOn(w.sunrise, today),
+                w == null ? -1 : Weather.minuteOn(w.sunset, today));
+    }
+
+    /** Cross-fades the wallpaper when the sun has moved into another part of the day, and checks again in a minute. */
+    private void followSun() {
+        main.removeCallbacks(followSun);
+        main.postDelayed(followSun, 60_000L);
+        SkyBackground.Phase next = sunPhase();
         if (next == phase) {
             return;
         }

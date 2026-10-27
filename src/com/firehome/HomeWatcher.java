@@ -148,7 +148,7 @@ public class HomeWatcher extends Service {
         if (snapshot != null) {
             cover.setImageBitmap(snapshot);
         } else {
-            cover.setBackground(new SkyBackground());   // nothing to show yet (first Home since boot)
+            cover.setBackground(new SkyBackground(Sun.phase(java.util.Calendar.getInstance())));   // nothing to show yet (first Home since boot)
         }
         // focusable, so remote presses land here instead of on Amazon's home underneath; Back lets go early
         cover.setFocusable(true);

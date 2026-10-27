@@ -31,11 +31,6 @@ class HomeBar {
         void show(String caption, String title, String about);
     }
 
-    /** Home Assistant's input_select.timeofday, lower case ("day", "night", ...), whenever it changes. */
-    interface TimeOfDay {
-        void changed(String value);
-    }
-
     private static final Pattern STATE = Pattern.compile("['\"]state['\"]\\s*:\\s*['\"]([a-z_]+)['\"]");
     private static final Pattern POSITION = Pattern.compile("['\"]position['\"]\\s*:\\s*(-?\\d+)");
     // the same height as the Appstore and Settings pills next to it
@@ -48,7 +43,6 @@ class HomeBar {
     private final List<Room> rooms = new ArrayList<>();
     private final Map<String, Device> byName = new HashMap<>();
     private Mqtt mqtt;
-    private TimeOfDay timeOfDay;
     private boolean online;
     private LinearLayout panel;
     private View behind;
@@ -210,10 +204,6 @@ class HomeBar {
         return panel;
     }
 
-    void onTimeOfDay(TimeOfDay listener) {
-        timeOfDay = listener;
-    }
-
     /** A view to dim while a room's panel is open (the app row it covers). */
     void dimWhileOpen(View view) {
         behind = view;
@@ -335,16 +325,7 @@ class HomeBar {
 
             @Override
             public void message(String topic, String payload) {
-                String name = topic.substring(topic.lastIndexOf('/') + 1);
-                if (name.equals("timeofday")) {
-                    Matcher t = STATE.matcher(payload);
-                    if (t.find() && timeOfDay != null) {
-                        String value = t.group(1);
-                        main.post(() -> timeOfDay.changed(value));
-                    }
-                    return;
-                }
-                Device d = byName.get(name);
+                Device d = byName.get(topic.substring(topic.lastIndexOf('/') + 1));
                 if (d == null) {
                     return;
                 }

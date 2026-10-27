@@ -17,7 +17,7 @@ import java.net.URL;
  */
 class Weather {
     private static final String URL = "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.40"
-            + "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min"
+            + "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset"
             + "&timezone=Europe%2FBerlin&forecast_days=1";
     static final long REFRESH_MS = 15 * 60 * 1000L;
     private static final String PREFS = "weather";
@@ -28,6 +28,9 @@ class Weather {
     final int code;
     final boolean day;
     final long fetched;
+    // today's sunrise and sunset as "yyyy-MM-ddTHH:mm" local time, or null from an older saved answer
+    final String sunrise;
+    final String sunset;
 
     private Weather(JSONObject json, long fetched) throws org.json.JSONException {
         JSONObject current = json.getJSONObject("current");
@@ -37,6 +40,8 @@ class Weather {
         day = current.getInt("is_day") == 1;
         high = daily.getJSONArray("temperature_2m_max").getDouble(0);
         low = daily.getJSONArray("temperature_2m_min").getDouble(0);
+        sunrise = daily.has("sunrise") ? daily.getJSONArray("sunrise").getString(0) : null;
+        sunset = daily.has("sunset") ? daily.getJSONArray("sunset").getString(0) : null;
         this.fetched = fetched;
     }
 
@@ -107,6 +112,14 @@ class Weather {
         if (code >= 95) return WeatherIcon.Kind.THUNDER;
         if (code >= 51) return WeatherIcon.Kind.RAIN;
         return WeatherIcon.Kind.CLOUDY;
+    }
+
+    /** Minute of the day of a "yyyy-MM-ddTHH:mm" time if it falls on `today` ("yyyy-MM-dd"), else -1. */
+    static int minuteOn(String time, String today) {
+        if (time == null || time.length() < 16 || !time.startsWith(today)) {
+            return -1;
+        }
+        return Integer.parseInt(time.substring(11, 13)) * 60 + Integer.parseInt(time.substring(14, 16));
     }
 
     static String degrees(double value) {

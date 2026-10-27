@@ -14,8 +14,8 @@ import java.util.Random;
 
 /**
  * A tvOS-style wallpaper drawn in code: a sky gradient, a soft glow low on the horizon, stars, and a darker band
- * along the bottom so the app row and its text stay readable. Four looks, for the phases of the day: night (the
- * default, deep and starry), morning (pale dawn), day (clear blue, no stars) and evening (warm sunset).
+ * along the bottom so the app row and its text stay readable. Four looks, for the phases of the day (see Sun):
+ * night (deep and starry), morning (pale dawn), day (clear blue, no stars) and evening (the warm original).
  */
 class SkyBackground extends Drawable {
     enum Phase {
@@ -36,19 +36,6 @@ class SkyBackground extends Drawable {
             this.stars = stars;
             this.band = band;
         }
-
-        /** HA's input_select.timeofday value (lower case), or NIGHT for anything unknown. */
-        static Phase of(String timeOfDay) {
-            if (timeOfDay == null) {
-                return NIGHT;
-            }
-            switch (timeOfDay) {
-                case "morning": return MORNING;
-                case "day": return DAY;
-                case "evening": return EVENING;
-                default: return NIGHT;
-            }
-        }
     }
 
     private final Phase phase;
@@ -58,10 +45,6 @@ class SkyBackground extends Drawable {
     private Shader glow;
     private Shader shade;
     private float[] stars;
-
-    SkyBackground() {
-        this(Phase.EVENING);   // the original look, for installs without Home Assistant
-    }
 
     SkyBackground(Phase phase) {
         this.phase = phase;
