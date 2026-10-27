@@ -257,8 +257,8 @@ public class HomeActivity extends Activity {
         LinearLayout transport = new LinearLayout(this);
         transport.setOrientation(LinearLayout.VERTICAL);
         transport.setGravity(Gravity.END);
-        bus = new Departures(this, dp, BarIcon.Kind.BUS, "147", 13, 26);
-        metro = new Departures(this, dp, BarIcon.Kind.METRO, "U8", 13, 26);
+        bus = new Departures(this, dp, BarIcon.Kind.BUS, "147", 11, 26);
+        metro = new Departures(this, dp, BarIcon.Kind.METRO, "U8", 11, 26);
         // both as wide as the wider one, so their icons line up
         transport.addView(bus.view(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
