@@ -10,13 +10,13 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 
 /**
- * Line icons for the Home Assistant bar, drawn in code: a bulb, a ceiling pendant, a desk, a bed, a fan, a blind and a
- * curtain. "On" (or open) draws
+ * Line icons for the Home Assistant bar, drawn in code: devices (a bulb, a ceiling pendant, a desk, a bed, a fan, a
+ * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door). "On" (or open) draws
  * them in the accent colour (dark, for the bar's yellow "on" button) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {
-    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN }
+    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR }
 
     private final Kind kind;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -107,6 +107,46 @@ class BarIcon extends Drawable {
                 }
                 canvas.drawRoundRect(pillow, r, r, line);
                 canvas.drawLine(s * 0.9f, s * 0.72f, s * 0.9f, s * 0.86f, line);
+                break;
+            }
+            case SOFA: {
+                float r = s * 0.06f;
+                canvas.drawRoundRect(new RectF(s * 0.2f, s * 0.26f, s * 0.8f, s * 0.56f), r, r, line);
+                canvas.drawRoundRect(new RectF(s * 0.08f, s * 0.44f, s * 0.92f, s * 0.74f), r, r, line);
+                canvas.drawLine(s * 0.16f, s * 0.74f, s * 0.16f, s * 0.86f, line);
+                canvas.drawLine(s * 0.84f, s * 0.74f, s * 0.84f, s * 0.86f, line);
+                break;
+            }
+            case KITCHEN: {
+                // a cooking pot with a lid and handles, steam above
+                float r = s * 0.06f;
+                canvas.drawRoundRect(new RectF(s * 0.2f, s * 0.46f, s * 0.8f, s * 0.86f), r, r, line);
+                canvas.drawLine(s * 0.14f, s * 0.4f, s * 0.86f, s * 0.4f, line);
+                canvas.drawLine(s * 0.06f, s * 0.54f, s * 0.2f, s * 0.54f, line);
+                canvas.drawLine(s * 0.8f, s * 0.54f, s * 0.94f, s * 0.54f, line);
+                canvas.drawLine(s * 0.42f, s * 0.1f, s * 0.42f, s * 0.26f, line);
+                canvas.drawLine(s * 0.58f, s * 0.1f, s * 0.58f, s * 0.26f, line);
+                break;
+            }
+            case BATH: {
+                // a bathtub with feet and a tap rising from its left end
+                Path tub = new Path();
+                tub.moveTo(s * 0.08f, s * 0.5f);
+                tub.lineTo(s * 0.92f, s * 0.5f);
+                tub.lineTo(s * 0.84f, s * 0.76f);
+                tub.lineTo(s * 0.16f, s * 0.76f);
+                tub.close();
+                canvas.drawPath(tub, line);
+                canvas.drawLine(s * 0.22f, s * 0.76f, s * 0.2f, s * 0.88f, line);
+                canvas.drawLine(s * 0.78f, s * 0.76f, s * 0.8f, s * 0.88f, line);
+                canvas.drawLine(s * 0.2f, s * 0.5f, s * 0.2f, s * 0.16f, line);
+                canvas.drawLine(s * 0.2f, s * 0.16f, s * 0.38f, s * 0.16f, line);
+                break;
+            }
+            case DOOR: {
+                canvas.drawRect(s * 0.26f, s * 0.08f, s * 0.74f, s * 0.92f, line);
+                canvas.drawCircle(s * 0.62f, s * 0.52f, s * 0.05f, fill);
+                canvas.drawLine(s * 0.12f, s * 0.92f, s * 0.88f, s * 0.92f, line);
                 break;
             }
             case FAN:

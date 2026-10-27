@@ -241,6 +241,14 @@ public class HomeActivity extends Activity {
         FrameLayout.LayoutParams bottomLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
         bottomLp.setMargins(0, 0, 0, px(34));
+        if (bar != null) {
+            // a room's controls open in a glass panel centred just above the bottom row, over the app row's edge
+            FrameLayout.LayoutParams panelLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            panelLp.setMargins(0, 0, 0, px(88));
+            root.addView(bar.panel(), panelLp);
+            bar.dimWhileOpen(scroll);
+        }
         root.setClipChildren(false);
         root.addView(bottom, bottomLp);
 
@@ -318,7 +326,10 @@ public class HomeActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        // this is Home: Back has nowhere to go
+        // this is Home: Back only closes an open room panel, otherwise it has nowhere to go
+        if (bar != null) {
+            bar.back();
+        }
     }
 
     /** Rebuilds the row and returns the tile to focus: the app opened last, else the first one. */
