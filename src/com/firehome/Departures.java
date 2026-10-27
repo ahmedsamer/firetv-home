@@ -29,8 +29,8 @@ import java.util.Map;
  */
 class Departures {
     private static final int MAX_DIRECTIONS = 2;
-    private static final int NAME_DP = 34;      // wide enough for "147" in bold
-    private static final int MINUTES_DP = 52;   // wide enough for "59 min"
+    private static final int NAME_DP = 30;      // wide enough for "147" in bold
+    private static final int MINUTES_DP = 46;   // wide enough for "59 min"
     private static final int LATE_S = 120;   // a departure this late shows its minutes in amber
     private static final int AMBER = 0xFFFFB13B;
 
