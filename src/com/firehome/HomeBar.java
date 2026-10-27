@@ -45,6 +45,7 @@ class HomeBar {
     private static final Pattern POSITION = Pattern.compile("['\"]position['\"]\\s*:\\s*(-?\\d+)");
     // the same height as the Appstore and Settings pills next to it
     private static final int SIZE_DP = 33;
+    private static final float ON_GLOW = 0.4f;   // how strong an "on" device's yellow halo is (1 = full)
 
     private final Context context;
     private final float dp;
@@ -253,6 +254,7 @@ class HomeBar {
             if (d.button == null) {
                 d.icon = new BarIcon(d.kind);
                 d.button = circle(d.icon);
+                d.button.setShadow(0, ON_GLOW);   // a soft halo while on, not a full glow
                 d.button.setOnClickListener(v -> mqtt.publish("firetv/cmd/" + d.name, "toggle"));
                 d.button.setOnFocusChangeListener((v, has) -> {
                     d.focused = has;
@@ -421,7 +423,7 @@ class HomeBar {
 
     private GradientDrawable glass(boolean on, boolean focused) {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                on ? new int[] {0xFFFFE08A, 0xFFFFC23D}
+                on ? new int[] {0xFFF5D27E, 0xFFE8AE3A}
                         : focused ? new int[] {0x66FFFFFF, 0x33FFFFFF} : new int[] {0x33FFFFFF, 0x17FFFFFF});
         bg.setCornerRadius(px(SIZE_DP) / 2f);
         bg.setStroke(Math.max(1, px(focused ? 2 : 1)), focused ? 0xF2FFFFFF : on ? 0x00000000 : 0x40FFFFFF);
