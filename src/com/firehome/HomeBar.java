@@ -195,7 +195,7 @@ class HomeBar {
         panel.setBackground(bg);
         panel.setElevation(px(24));   // above the app tiles, which lift when focused
         panel.setVisibility(View.GONE);
-        // leaving the panel with the remote (up to the apps, down past it) closes it
+        // leaving the panel (up or down to its room button, or anywhere else) closes it
         panel.getViewTreeObserver().addOnGlobalFocusChangeListener((was, now) -> {
             if (open != null && now != null && !isInside(now, panel)) {
                 closeRoom(false);
@@ -263,7 +263,9 @@ class HomeBar {
             GlowTile button = r.devices.get(i).button;
             button.setNextFocusLeftId(r.devices.get(Math.max(0, i - 1)).button.getId());
             button.setNextFocusRightId(r.devices.get(Math.min(r.devices.size() - 1, i + 1)).button.getId());
-            button.setNextFocusDownId(r.button.getId() == View.NO_ID ? View.NO_ID : r.button.getId());
+            // up and down both leave the panel back to its room button
+            button.setNextFocusDownId(r.button.getId());
+            button.setNextFocusUpId(r.button.getId());
         }
         open = r;
         if (behind != null) {
