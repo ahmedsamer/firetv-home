@@ -117,6 +117,7 @@ public class HomeActivity extends Activity {
     private static final double HUMIDITY_HIGH = 60;
     private static final double CO2_HIGH = 1000;
     private static final int AMBER = 0xFFFFB13B;
+    private static final float UNIT_SIZE = 0.7f;
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
@@ -382,13 +383,13 @@ public class HomeActivity extends Activity {
         // a value outside the comfortable range turns amber: humidity outside 40-60 %, CO₂ above 1000 ppm
         android.text.SpannableStringBuilder line = new android.text.SpannableStringBuilder();
         if (!Double.isNaN(humidity)) {
-            append(line, "Humidity " + Math.round(humidity) + "%", humidity < HUMIDITY_LOW || humidity > HUMIDITY_HIGH);
+            append(line, "Humidity " + Math.round(humidity), "%", humidity < HUMIDITY_LOW || humidity > HUMIDITY_HIGH);
         }
         if (!Double.isNaN(co2)) {
             if (line.length() > 0) {
                 line.append("  ·  ");
             }
-            append(line, "CO₂ " + Math.round(co2) + " ppm", co2 > CO2_HIGH);
+            append(line, "CO₂ " + Math.round(co2), " ppm", co2 > CO2_HIGH);
         }
         climateLine.setText(line);
         climate.setVisibility(View.VISIBLE);
@@ -397,9 +398,14 @@ public class HomeActivity extends Activity {
         }
     }
 
-    private static void append(android.text.SpannableStringBuilder line, String text, boolean high) {
+    /** Appends "label value" and its unit, the unit smaller; all of it in AMBER when the value is high. */
+    private static void append(android.text.SpannableStringBuilder line, String text, String unit, boolean high) {
         int start = line.length();
         line.append(text);
+        int unitStart = line.length();
+        line.append(unit);
+        line.setSpan(new android.text.style.RelativeSizeSpan(UNIT_SIZE), unitStart, line.length(),
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (high) {
             line.setSpan(new android.text.style.ForegroundColorSpan(AMBER), start, line.length(),
                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
