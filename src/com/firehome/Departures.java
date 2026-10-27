@@ -22,8 +22,8 @@ import java.util.Map;
 /**
  * One stop's next departures, for the top-right corner, laid out like the climate block (a step smaller): a line icon (a bus or an
  * underground train) and the minutes to the next departure in big digits, the line ("147", "U8") as a smaller tag in
- * a light shade of the line's colour, and below a small line with each direction's next departure
- * ("Hermannstr. 3  ·  Wittenau 7 min"). Home Assistant publishes
+ * a light shade of the line's colour, and below a small line per direction with its next departure
+ * ("Hermannstr. 3 min" over "Wittenau 7 min"). Home Assistant publishes
  * {"line", "color", "walk", "deps": [{"ts": epoch seconds, "dir", "delay": seconds, "x": cancelled}]} to
  * firetv/state/bus and firetv/state/metro; the minutes are worked out here, so tick() keeps them counting down
  * between updates. Departures sooner than the walk to the stop, and cancelled ones, are left out.
@@ -79,7 +79,7 @@ class Departures {
         reading.addView(tag);
         now.addView(reading);
         details = text(context, sizes.line, 0xD9FFFFFF, 8, 1);
-        details.setMaxLines(1);
+        details.setGravity(Gravity.END);   // one direction per line, right-aligned
         // wrap_content: a vertical LinearLayout's default is match_parent, which defeats the right alignment
         view.addView(now, wrap());
         view.addView(details, wrap());
@@ -149,12 +149,12 @@ class Departures {
             appendUnit(big, 0.45f);
             for (Map.Entry<String, int[]> e : next.entrySet()) {
                 if (small.length() > 0) {
-                    small.append("  ·  ");
+                    small.append('\n');
                 }
                 small.append(e.getKey()).append(' ');
                 appendMinutes(small, e.getValue());
+                appendUnit(small, 0.7f);
             }
-            appendUnit(small, 0.7f);
         }
         minutes.setText(big);
         details.setText(small);
