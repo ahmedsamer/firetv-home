@@ -213,7 +213,7 @@ public class HomeActivity extends Activity {
         // top centre, so the right corner is free (for transport departures later)
         root.addView(corner, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
 
-        // the indoor climate from Home Assistant, top left, sized and shadowed like the clock; empty until there is
+        // the indoor climate from Home Assistant, top left, the same size and shadow as the clock; empty until there is
         // something to show
         LinearLayout climate = new LinearLayout(this);
         this.climate = climate;
@@ -225,22 +225,22 @@ public class HomeActivity extends Activity {
         BarIcon houseIcon = new BarIcon(BarIcon.Kind.HOME);
         houseIcon.set(false, 0f, 0);
         house.setImageDrawable(houseIcon);
-        now.addView(house, new LinearLayout.LayoutParams(px(44), px(44)));
+        now.addView(house, new LinearLayout.LayoutParams(px(36), px(36)));
         climateTemp = new TextView(this);
-        style(climateTemp, 56, 0xFFFFFFFF, "sans-serif-medium");
+        style(climateTemp, CLOCK_SP, 0xFFFFFFFF, "sans-serif-medium");
         climateTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
-        climateTemp.setPadding(px(14), 0, 0, 0);
+        climateTemp.setPadding(px(12), 0, 0, 0);
         LinearLayout reading = new LinearLayout(this);   // horizontal and baseline-aligned, like the clock's "PM"
         reading.addView(climateTemp);
         now.addView(reading);
         // how the home compares with outside: "↑13°" (coral) means 13° warmer at home than outside, "↓" (blue) cooler
         outsideDiff = new TextView(this);
-        style(outsideDiff, 30, 0xD9FFFFFF, "sans-serif-medium");
+        style(outsideDiff, 25, 0xD9FFFFFF, "sans-serif-medium");
         outsideDiff.setShadowLayer(px(8), 0, px(1), 0x66000000);
-        outsideDiff.setPadding(px(18), 0, 0, 0);
+        outsideDiff.setPadding(px(15), 0, 0, 0);
         reading.addView(outsideDiff);
         climateLine = new TextView(this);
-        style(climateLine, 20, 0xD9FFFFFF, "sans-serif-medium");
+        style(climateLine, 17, 0xD9FFFFFF, "sans-serif-medium");
         climateLine.setShadowLayer(px(8), 0, px(1), 0x66000000);
         climate.addView(now);
         climate.addView(climateLine);
