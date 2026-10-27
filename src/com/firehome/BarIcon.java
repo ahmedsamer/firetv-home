@@ -10,12 +10,13 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 
 /**
- * Line icons for the Home Assistant bar, drawn in code: a bulb, a fan, a blind and a curtain. "On" (or open) draws
+ * Line icons for the Home Assistant bar, drawn in code: a bulb, a ceiling pendant, a desk lamp, a bedside lamp, a fan,
+ * a blind and a curtain. "On" (or open) draws
  * them in the accent colour (dark, for the bar's yellow "on" button) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {
-    enum Kind { LIGHT, FAN, BLIND, CURTAIN }
+    enum Kind { LIGHT, CEILING, DESK, BEDSIDE, FAN, BLIND, CURTAIN }
 
     private final Kind kind;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -60,6 +61,58 @@ class BarIcon extends Drawable {
                 canvas.drawLine(s * 0.38f, s * 0.78f, s * 0.62f, s * 0.78f, line);
                 canvas.drawLine(s * 0.42f, s * 0.9f, s * 0.58f, s * 0.9f, line);
                 break;
+            case CEILING: {
+                canvas.drawLine(s * 0.5f, s * 0.04f, s * 0.5f, s * 0.3f, line);
+                Path shade = new Path();
+                shade.moveTo(s * 0.14f, s * 0.64f);
+                shade.cubicTo(s * 0.16f, s * 0.36f, s * 0.84f, s * 0.36f, s * 0.86f, s * 0.64f);
+                shade.close();
+                if (on) {
+                    fill.setAlpha(220);
+                    canvas.drawPath(shade, fill);
+                }
+                canvas.drawPath(shade, line);
+                canvas.drawCircle(s * 0.5f, s * 0.74f, s * 0.08f, on ? fill : line);
+                break;
+            }
+            case DESK: {
+                // base, two arm segments and a tilted head, like an architect's lamp
+                canvas.drawLine(s * 0.14f, s * 0.9f, s * 0.56f, s * 0.9f, line);
+                canvas.drawLine(s * 0.3f, s * 0.9f, s * 0.2f, s * 0.5f, line);
+                canvas.drawLine(s * 0.2f, s * 0.5f, s * 0.56f, s * 0.24f, line);
+                canvas.save();
+                canvas.rotate(35f, s * 0.6f, s * 0.24f);
+                Path head = new Path();
+                head.moveTo(s * 0.5f, s * 0.16f);
+                head.lineTo(s * 0.7f, s * 0.16f);
+                head.lineTo(s * 0.86f, s * 0.42f);
+                head.lineTo(s * 0.34f, s * 0.42f);
+                head.close();
+                if (on) {
+                    fill.setAlpha(220);
+                    canvas.drawPath(head, fill);
+                }
+                canvas.drawPath(head, line);
+                canvas.restore();
+                break;
+            }
+            case BEDSIDE: {
+                // a table lamp: tapered shade on a stem and a round foot
+                Path shade = new Path();
+                shade.moveTo(s * 0.34f, s * 0.1f);
+                shade.lineTo(s * 0.66f, s * 0.1f);
+                shade.lineTo(s * 0.82f, s * 0.48f);
+                shade.lineTo(s * 0.18f, s * 0.48f);
+                shade.close();
+                if (on) {
+                    fill.setAlpha(220);
+                    canvas.drawPath(shade, fill);
+                }
+                canvas.drawPath(shade, line);
+                canvas.drawLine(s * 0.5f, s * 0.48f, s * 0.5f, s * 0.8f, line);
+                canvas.drawLine(s * 0.3f, s * 0.88f, s * 0.7f, s * 0.88f, line);
+                break;
+            }
             case FAN:
                 canvas.drawCircle(s * 0.5f, s * 0.5f, s * 0.07f, fill);
                 for (int i = 0; i < 3; i++) {

@@ -82,14 +82,25 @@ class HomeBar {
             Device d = new Device();
             d.name = f[0];
             d.label = f[1];
-            d.kind = f[2].equals("fan") ? BarIcon.Kind.FAN : f[2].equals("blind") ? BarIcon.Kind.BLIND
-                    : f[2].equals("curtain") ? BarIcon.Kind.CURTAIN : BarIcon.Kind.LIGHT;
+            d.kind = kind(f[2]);
             bar.devices.add(d);
             bar.byName.put(d.name, d);
         }
         bar.mqtt = new Mqtt(host, Integer.parseInt(p.getProperty("port", "1883")), p.getProperty("user", ""),
                 p.getProperty("password", ""), "firetv/state/+", bar.listener());
         return bar.devices.isEmpty() ? null : bar;
+    }
+
+    private static BarIcon.Kind kind(String name) {
+        switch (name) {
+            case "ceiling": return BarIcon.Kind.CEILING;
+            case "desk": return BarIcon.Kind.DESK;
+            case "bedside": return BarIcon.Kind.BEDSIDE;
+            case "fan": return BarIcon.Kind.FAN;
+            case "blind": return BarIcon.Kind.BLIND;
+            case "curtain": return BarIcon.Kind.CURTAIN;
+            default: return BarIcon.Kind.LIGHT;
+        }
     }
 
     View view() {
