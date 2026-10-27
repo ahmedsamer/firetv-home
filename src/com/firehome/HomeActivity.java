@@ -117,7 +117,7 @@ public class HomeActivity extends Activity {
     private static final double HUMIDITY_HIGH = 60;
     private static final double CO2_HIGH = 1000;
     private static final int AMBER = 0xFFFFB13B;
-    // the clock sits top centre between the climate and (later) transport, a little smaller than they are
+    // the clock sits top centre between the climate and the departures
     private static final int CLOCK_SP = 46;
     private static final int DAY_TINT = 0xFF9EDDE2;   // the "27th" over the month: a pale cyan, a shade off the white
     private static final float UNIT_SIZE = 0.7f;
@@ -138,6 +138,8 @@ public class HomeActivity extends Activity {
     private TextView about;
     private String lastOpened;
     private View climate;
+    private Departures bus;
+    private Departures metro;
     private TextView climateTemp;
     private TextView outsideDiff;
     private double indoor = Double.NaN;
@@ -198,6 +200,10 @@ public class HomeActivity extends Activity {
             @Override
             public void afterTextChanged(android.text.Editable text) {
                 showDate(day, month);
+                if (bus != null) {
+                    bus.tick();   // the departures count down with the clock
+                    metro.tick();
+                }
             }
         });
         showDate(day, month);
@@ -247,6 +253,17 @@ public class HomeActivity extends Activity {
         climate.setVisibility(View.INVISIBLE);
         root.addView(climate, at(Gravity.TOP | Gravity.START, 48, 30));
 
+        // the next departures, top right: bus 147 and the U8 side by side, filled in from Home Assistant
+        LinearLayout transport = new LinearLayout(this);
+        bus = new Departures(this, dp, "147");
+        metro = new Departures(this, dp, "U8");
+        transport.addView(bus.view());
+        LinearLayout.LayoutParams metroLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        metroLp.setMargins(px(32), 0, 0, 0);
+        transport.addView(metro.view(), metroLp);
+        root.addView(transport, at(Gravity.TOP | Gravity.END, 48, 34));
+
         // everything else stacks up from the bottom edge: what's focused, the app row, the buttons
         LinearLayout bottom = new LinearLayout(this);
         bottom.setOrientation(LinearLayout.VERTICAL);
@@ -295,7 +312,15 @@ public class HomeActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
         bar = HomeBar.load(this, dp, this::show);
         if (bar != null) {
-            bar.onClimate(payload -> showClimate(payload, true));
+            bar.onExtra((name, payload) -> {
+                if (name.equals("climate")) {
+                    showClimate(payload, true);
+                } else if (name.equals("bus")) {
+                    bus.update(payload);
+                } else if (name.equals("metro")) {
+                    metro.update(payload);
+                }
+            });
             showClimate(getSharedPreferences("climate", MODE_PRIVATE).getString("json", null), false);
             bar.start();   // one connection for the app's lifetime: pausing on every Home press would race it
             buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,

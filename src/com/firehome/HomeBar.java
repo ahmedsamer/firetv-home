@@ -31,10 +31,15 @@ class HomeBar {
         void show(String caption, String title, String about);
     }
 
-    /** The indoor climate Home Assistant publishes to firetv/state/climate, as its raw JSON payload. */
-    interface Climate {
-        void climate(String payload);
+    /**
+     * Topics that are not devices: the indoor climate (firetv/state/climate) and the departures (firetv/state/bus,
+     * firetv/state/metro), handed over by name with their raw JSON payload.
+     */
+    interface Extra {
+        void message(String name, String payload);
     }
+
+    private static final List<String> EXTRAS = java.util.Arrays.asList("climate", "bus", "metro");
 
     private static final Pattern STATE = Pattern.compile("['\"]state['\"]\\s*:\\s*['\"]([a-z_]+)['\"]");
     private static final Pattern POSITION = Pattern.compile("['\"]position['\"]\\s*:\\s*(-?\\d+)");
@@ -48,7 +53,7 @@ class HomeBar {
     private final List<Room> rooms = new ArrayList<>();
     private final Map<String, Device> byName = new HashMap<>();
     private Mqtt mqtt;
-    private Climate climate;
+    private Extra extra;
     private boolean online;
     private LinearLayout panel;
     private View behind;
@@ -150,9 +155,9 @@ class HomeBar {
         }
     }
 
-    /** Who to tell when the indoor climate changes; called on the main thread. */
-    void onClimate(Climate climate) {
-        this.climate = climate;
+    /** Who to tell when the climate or the departures change; called on the main thread. */
+    void onExtra(Extra extra) {
+        this.extra = extra;
     }
 
     /** The room buttons, for the bottom row. */
@@ -339,10 +344,10 @@ class HomeBar {
             @Override
             public void message(String topic, String payload) {
                 String name = topic.substring(topic.lastIndexOf('/') + 1);
-                if (name.equals("climate")) {
+                if (EXTRAS.contains(name)) {
                     main.post(() -> {
-                        if (climate != null) {
-                            climate.climate(payload);
+                        if (extra != null) {
+                            extra.message(name, payload);
                         }
                     });
                     return;
