@@ -38,6 +38,8 @@ class HomeBar {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Device> devices = new ArrayList<>();
     private final Map<String, Device> byName = new HashMap<>();
+    // the same height as the Appstore and Settings pills next to it
+    private static final int SIZE_DP = 33;
     private Mqtt mqtt;
     private boolean online;
 
@@ -96,12 +98,12 @@ class HomeBar {
         row.setClipChildren(false);
         for (Device d : devices) {
             d.icon = new BarIcon(d.kind);
-            d.button = new GlowTile(context, 0xFFFFC857, px(12), px(23));
+            d.button = new GlowTile(context, 0xFFFFC857, px(8), px(SIZE_DP / 2));
             ImageView image = new ImageView(context);
             image.setImageDrawable(d.icon);
-            int pad = px(10);
+            int pad = px(7);
             image.setPadding(pad, pad, pad, pad);
-            d.button.addView(image, new android.widget.FrameLayout.LayoutParams(px(46), px(46)));
+            d.button.addView(image, new android.widget.FrameLayout.LayoutParams(px(SIZE_DP), px(SIZE_DP)));
             d.button.setFocusable(true);
             d.button.setOnClickListener(v -> mqtt.publish("firetv/cmd/" + d.name, "toggle"));
             d.button.setOnFocusChangeListener((v, has) -> {
@@ -112,8 +114,8 @@ class HomeBar {
                     describe(d);
                 }
             });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(46), px(46));
-            lp.setMargins(px(5), 0, px(5), 0);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(SIZE_DP), px(SIZE_DP));
+            lp.setMargins(px(4), 0, px(4), 0);
             row.addView(d.button, lp);
             paint(d);
         }
@@ -184,7 +186,7 @@ class HomeBar {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 on ? new int[] {0xFFFFE08A, 0xFFFFC23D}
                         : d.focused ? new int[] {0x66FFFFFF, 0x33FFFFFF} : new int[] {0x33FFFFFF, 0x17FFFFFF});
-        bg.setCornerRadius(px(23));
+        bg.setCornerRadius(px(SIZE_DP) / 2f);
         bg.setStroke(Math.max(1, px(d.focused ? 2 : 1)), d.focused ? 0xF2FFFFFF : on ? 0x00000000 : 0x40FFFFFF);
         d.button.setBackground(bg);
         d.button.setAlpha(usable ? 1f : 0.45f);
