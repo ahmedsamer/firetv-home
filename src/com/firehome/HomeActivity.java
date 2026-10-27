@@ -117,6 +117,8 @@ public class HomeActivity extends Activity {
     private static final double HUMIDITY_HIGH = 60;
     private static final double CO2_HIGH = 1000;
     private static final int AMBER = 0xFFFFB13B;
+    // the clock sits top centre between the climate and (later) transport, a little smaller than they are
+    private static final int CLOCK_SP = 46;
     private static final float UNIT_SIZE = 0.7f;
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
@@ -160,12 +162,12 @@ public class HomeActivity extends Activity {
         TextClock time = new TextClock(this);
         time.setFormat12Hour("h:mm");
         time.setFormat24Hour("h:mm");
-        style(time, 56, 0xFFFFFFFF, "sans-serif-medium");
+        style(time, CLOCK_SP, 0xFFFFFFFF, "sans-serif-medium");
         time.setShadowLayer(px(12), 0, px(2), 0x66000000);
         TextClock half = new TextClock(this);
         half.setFormat12Hour("a");
         half.setFormat24Hour("a");
-        style(half, 24, 0xE6FFFFFF, "sans-serif-medium");
+        style(half, CLOCK_SP * 3 / 7, 0xE6FFFFFF, "sans-serif-medium");
         half.setShadowLayer(px(10), 0, px(1), 0x66000000);
         half.setPadding(px(8), 0, 0, 0);
         LinearLayout clock = new LinearLayout(this);   // horizontal and baseline-aligned: "PM" sits on the line
@@ -174,12 +176,13 @@ public class HomeActivity extends Activity {
         TextClock date = new TextClock(this);
         date.setFormat12Hour("EEEE, MMMM d");
         date.setFormat24Hour("EEEE, MMMM d");
-        style(date, 20, 0xD9FFFFFF, "sans-serif-medium");
+        style(date, 18, 0xD9FFFFFF, "sans-serif-medium");
         date.setShadowLayer(px(8), 0, px(1), 0x66000000);
         corner.addView(clock);
         corner.addView(date);
-        corner.setGravity(Gravity.END);
-        root.addView(corner, at(Gravity.TOP | Gravity.END, 48, 30));
+        // top centre, so the right corner is free (for transport departures later)
+        corner.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.addView(corner, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
 
         // the indoor climate from Home Assistant, top left, sized and shadowed like the clock; empty until there is
         // something to show
