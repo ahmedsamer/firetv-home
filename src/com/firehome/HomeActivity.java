@@ -119,6 +119,7 @@ public class HomeActivity extends Activity {
     private static final int AMBER = 0xFFFFB13B;
     // the clock sits top centre between the climate and (later) transport, a little smaller than they are
     private static final int CLOCK_SP = 46;
+    private static final int DAY_TINT = 0xFF9EDDE2;   // the "27th" over the month: a pale cyan, a shade off the white
     private static final float UNIT_SIZE = 0.7f;
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
@@ -160,7 +161,7 @@ public class HomeActivity extends Activity {
         // both formats); horizontal and baseline-aligned, so "Oct" and "PM" sit on the time's line
         LinearLayout corner = new LinearLayout(this);
         TextView day = new TextView(this);
-        style(day, CLOCK_SP * 2 / 7, 0xD9FFFFFF, "sans-serif-medium");
+        style(day, CLOCK_SP * 2 / 7, DAY_TINT, "sans-serif-medium");
         day.setShadowLayer(px(8), 0, px(1), 0x66000000);
         TextView month = new TextView(this);
         style(month, CLOCK_SP * 4 / 7, 0xE6FFFFFF, "sans-serif-medium");
@@ -169,9 +170,13 @@ public class HomeActivity extends Activity {
         day.setIncludeFontPadding(false);
         LinearLayout date = new LinearLayout(this);
         date.setOrientation(LinearLayout.VERTICAL);
-        date.setGravity(Gravity.CENTER_HORIZONTAL);
-        date.addView(day);
-        date.addView(month);
+        // both wrap_content (a vertical LinearLayout's default is match_parent); the day sits over the month's end
+        LinearLayout.LayoutParams dayLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        dayLp.gravity = Gravity.END;
+        date.addView(day, dayLp);
+        date.addView(month, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         date.setBaselineAlignedChildIndex(1);   // the month is what lines up with the time
         date.setPadding(0, 0, px(14), 0);
         TextClock time = new TextClock(this);
