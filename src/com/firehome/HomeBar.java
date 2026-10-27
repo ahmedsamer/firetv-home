@@ -31,6 +31,11 @@ class HomeBar {
         void show(String caption, String title, String about);
     }
 
+    /** The indoor climate Home Assistant publishes to firetv/state/climate, as its raw JSON payload. */
+    interface Climate {
+        void climate(String payload);
+    }
+
     private static final Pattern STATE = Pattern.compile("['\"]state['\"]\\s*:\\s*['\"]([a-z_]+)['\"]");
     private static final Pattern POSITION = Pattern.compile("['\"]position['\"]\\s*:\\s*(-?\\d+)");
     // the same height as the Appstore and Settings pills next to it
@@ -43,6 +48,7 @@ class HomeBar {
     private final List<Room> rooms = new ArrayList<>();
     private final Map<String, Device> byName = new HashMap<>();
     private Mqtt mqtt;
+    private Climate climate;
     private boolean online;
     private LinearLayout panel;
     private View behind;
@@ -142,6 +148,11 @@ class HomeBar {
             case "door": return BarIcon.Kind.DOOR;
             default: return BarIcon.Kind.LIGHT;
         }
+    }
+
+    /** Who to tell when the indoor climate changes; called on the main thread. */
+    void onClimate(Climate climate) {
+        this.climate = climate;
     }
 
     /** The room buttons, for the bottom row. */
@@ -327,7 +338,16 @@ class HomeBar {
 
             @Override
             public void message(String topic, String payload) {
-                Device d = byName.get(topic.substring(topic.lastIndexOf('/') + 1));
+                String name = topic.substring(topic.lastIndexOf('/') + 1);
+                if (name.equals("climate")) {
+                    main.post(() -> {
+                        if (climate != null) {
+                            climate.climate(payload);
+                        }
+                    });
+                    return;
+                }
+                Device d = byName.get(name);
                 if (d == null) {
                     return;
                 }

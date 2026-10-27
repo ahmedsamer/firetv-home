@@ -125,9 +125,9 @@ public class HomeActivity extends Activity {
     private TextView title;
     private TextView about;
     private String lastOpened;
-    private ImageView weatherIcon;
-    private TextView weatherTemp;
-    private TextView weatherLine;
+    private View climate;
+    private TextView climateTemp;
+    private TextView climateLine;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable refreshWeather = this::refreshWeather;
     private final Runnable followSun = this::followSun;
@@ -169,26 +169,31 @@ public class HomeActivity extends Activity {
         corner.addView(date);
         root.addView(corner, at(Gravity.TOP | Gravity.START, 48, 30));
 
-        // the weather, top right, sized and shadowed like the clock; empty until there is something to show
-        LinearLayout weather = new LinearLayout(this);
-        weather.setOrientation(LinearLayout.VERTICAL);
-        weather.setGravity(Gravity.END);
+        // the indoor climate from Home Assistant, top right, sized and shadowed like the clock; empty until there is
+        // something to show
+        LinearLayout climate = new LinearLayout(this);
+        this.climate = climate;
+        climate.setOrientation(LinearLayout.VERTICAL);
+        climate.setGravity(Gravity.END);
         LinearLayout now = new LinearLayout(this);
         now.setGravity(Gravity.CENTER_VERTICAL);
-        weatherIcon = new ImageView(this);
-        weatherIcon.setLayerType(View.LAYER_TYPE_SOFTWARE, null);   // the icon's soft shadow needs software drawing
-        now.addView(weatherIcon, new LinearLayout.LayoutParams(px(58), px(58)));
-        weatherTemp = new TextView(this);
-        style(weatherTemp, 56, 0xFFFFFFFF, "sans-serif-medium");
-        weatherTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
-        weatherTemp.setPadding(px(10), 0, 0, 0);
-        now.addView(weatherTemp);
-        weatherLine = new TextView(this);
-        style(weatherLine, 20, 0xD9FFFFFF, "sans-serif-medium");
-        weatherLine.setShadowLayer(px(8), 0, px(1), 0x66000000);
-        weather.addView(now);
-        weather.addView(weatherLine);
-        root.addView(weather, at(Gravity.TOP | Gravity.END, 48, 30));
+        ImageView house = new ImageView(this);
+        BarIcon houseIcon = new BarIcon(BarIcon.Kind.HOME);
+        houseIcon.set(false, 0f, 0);
+        house.setImageDrawable(houseIcon);
+        now.addView(house, new LinearLayout.LayoutParams(px(44), px(44)));
+        climateTemp = new TextView(this);
+        style(climateTemp, 56, 0xFFFFFFFF, "sans-serif-medium");
+        climateTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
+        climateTemp.setPadding(px(14), 0, 0, 0);
+        now.addView(climateTemp);
+        climateLine = new TextView(this);
+        style(climateLine, 20, 0xD9FFFFFF, "sans-serif-medium");
+        climateLine.setShadowLayer(px(8), 0, px(1), 0x66000000);
+        climate.addView(now);
+        climate.addView(climateLine);
+        climate.setVisibility(View.INVISIBLE);
+        root.addView(climate, at(Gravity.TOP | Gravity.END, 48, 30));
 
         // everything else stacks up from the bottom edge: what's focused, the app row, the buttons
         LinearLayout bottom = new LinearLayout(this);
@@ -238,6 +243,8 @@ public class HomeActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
         bar = HomeBar.load(this, dp, this::show);
         if (bar != null) {
+            bar.onClimate(payload -> showClimate(payload, true));
+            showClimate(getSharedPreferences("climate", MODE_PRIVATE).getString("json", null), false);
             bar.start();   // one connection for the app's lifetime: pausing on every Home press would race it
             buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
@@ -274,7 +281,6 @@ public class HomeActivity extends Activity {
             focus.requestFocus();
         }
         followSun();
-        showWeather(Weather.saved(this));
         refreshWeather();
         // let this screen draw a frame first, so the swap from the overlay's picture can't be seen
         root.postDelayed(HomeWatcher::hideOverlay, 150);
@@ -301,7 +307,7 @@ public class HomeActivity extends Activity {
         }
     }
 
-    /** Fetches new weather if what's shown is older than Weather.REFRESH_MS, and checks again later. */
+    /** Fetches new sunrise/sunset times if the saved ones are older than Weather.REFRESH_MS, and checks again later. */
     private void refreshWeather() {
         main.removeCallbacks(refreshWeather);
         main.removeCallbacks(followSun);
@@ -310,23 +316,44 @@ public class HomeActivity extends Activity {
         if (shown != null && System.currentTimeMillis() - shown.fetched < Weather.REFRESH_MS) {
             return;
         }
-        new Thread(() -> {
-            Weather fresh = Weather.fetch(getApplicationContext());
-            if (fresh != null) {
-                main.post(() -> showWeather(fresh));
-            }
-        }, "weather").start();
+        new Thread(() -> Weather.fetch(getApplicationContext()), "weather").start();
     }
 
-    private void showWeather(Weather weather) {
-        if (weather == null) {
-            return;   // nothing yet: the corner stays empty rather than showing an error
+    /**
+     * Shows Home Assistant's {"temperature": 22.7, "humidity": 44.7, "co2": 632} (living room); any value can be
+     * missing or "unavailable". The last one is saved, so the corner is filled straight after a restart.
+     */
+    private void showClimate(String payload, boolean save) {
+        if (payload == null) {
+            return;
         }
-        weatherIcon.setImageDrawable(new WeatherIcon(weather.kind(), weather.day));
-        weatherTemp.setText(Weather.degrees(weather.temperature));
-        String condition = weather.condition();
-        weatherLine.setText((condition.isEmpty() ? "" : condition + "  ·  ")
-                + "H " + Weather.degrees(weather.high) + "  L " + Weather.degrees(weather.low));
+        double temperature;
+        double humidity;
+        double co2;
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            temperature = json.optDouble("temperature");
+            humidity = json.optDouble("humidity");
+            co2 = json.optDouble("co2");
+        } catch (org.json.JSONException e) {
+            return;
+        }
+        if (Double.isNaN(temperature)) {
+            return;   // the corner keeps what it showed rather than an error
+        }
+        climateTemp.setText(String.format(java.util.Locale.ROOT, "%.1f°", temperature));
+        StringBuilder line = new StringBuilder();
+        if (!Double.isNaN(humidity)) {
+            line.append("Humidity ").append(Math.round(humidity)).append('%');
+        }
+        if (!Double.isNaN(co2)) {
+            line.append(line.length() > 0 ? "  ·  " : "").append("CO₂ ").append(Math.round(co2)).append(" ppm");
+        }
+        climateLine.setText(line);
+        climate.setVisibility(View.VISIBLE);
+        if (save) {
+            getSharedPreferences("climate", MODE_PRIVATE).edit().putString("json", payload).apply();
+        }
     }
 
     /** The part of the day now, from Open-Meteo's sunrise/sunset for today when the weather has them. */
