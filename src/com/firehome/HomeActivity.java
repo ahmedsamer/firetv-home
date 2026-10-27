@@ -20,6 +20,7 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -110,6 +111,7 @@ public class HomeActivity extends Activity {
 
     private float dp;
     private HomeBar bar;
+    private SkyBackground.Phase phase;
     private FrameLayout root;
     private Bitmap picture;
     private LinearLayout row;
@@ -248,6 +250,10 @@ public class HomeActivity extends Activity {
             panelLp.setMargins(0, 0, 0, px(88));
             root.addView(bar.panel(), panelLp);
             bar.dimWhileOpen(scroll);
+            // the wallpaper follows Home Assistant's time of day; the last one seen is shown at once on start
+            phase = SkyBackground.Phase.of(getSharedPreferences("sky", MODE_PRIVATE).getString("timeofday", null));
+            root.setBackground(new SkyBackground(phase));
+            bar.onTimeOfDay(this::setTimeOfDay);
         }
         root.setClipChildren(false);
         root.addView(bottom, bottomLp);
@@ -314,6 +320,22 @@ public class HomeActivity extends Activity {
         String condition = weather.condition();
         weatherLine.setText((condition.isEmpty() ? "" : condition + "  ·  ")
                 + "H " + Weather.degrees(weather.high) + "  L " + Weather.degrees(weather.low));
+    }
+
+    /** Cross-fades the wallpaper to the look for this time of day. */
+    private void setTimeOfDay(String value) {
+        getSharedPreferences("sky", MODE_PRIVATE).edit().putString("timeofday", value).apply();
+        SkyBackground.Phase next = SkyBackground.Phase.of(value);
+        if (next == phase) {
+            return;
+        }
+        Drawable from = root.getBackground() instanceof TransitionDrawable
+                ? ((TransitionDrawable) root.getBackground()).getDrawable(1) : root.getBackground();
+        TransitionDrawable fade = new TransitionDrawable(new Drawable[] {from, new SkyBackground(next)});
+        fade.setCrossFadeEnabled(true);
+        root.setBackground(fade);
+        fade.startTransition(1500);
+        phase = next;
     }
 
     @Override
