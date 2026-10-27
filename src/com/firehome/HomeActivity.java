@@ -198,7 +198,7 @@ public class HomeActivity extends Activity {
         climateTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
         climateTemp.setPadding(px(14), 0, 0, 0);
         now.addView(climateTemp);
-        // the difference to outside: "↓13°" (blue) means 13° colder outside than in, "↑" (coral) warmer
+        // how the home compares with outside: "↑13°" (coral) means 13° warmer at home than outside, "↓" (blue) cooler
         outsideDiff = new TextView(this);
         style(outsideDiff, 30, 0xD9FFFFFF, "sans-serif-medium");
         outsideDiff.setShadowLayer(px(8), 0, px(1), 0x66000000);
@@ -341,7 +341,7 @@ public class HomeActivity extends Activity {
         }, "weather").start();
     }
 
-    /** The outdoor-minus-indoor difference, beside the indoor temperature; hidden while either is missing or the
+    /** The indoor-minus-outdoor difference, beside the indoor temperature; hidden while either is missing or the
      *  weather is over an hour old. */
     private void showOutside() {
         Weather w = Weather.saved(this);
@@ -350,7 +350,7 @@ public class HomeActivity extends Activity {
         if (!show) {
             return;
         }
-        long diff = Math.round(w.temperature - indoor);
+        long diff = Math.round(indoor - w.temperature);
         outsideDiff.setText(diff == 0 ? "=" : (diff < 0 ? "↓" : "↑") + Math.abs(diff) + "°");
         outsideDiff.setTextColor(diff < 0 ? COLDER : diff > 0 ? WARMER : 0xD9FFFFFF);
     }
