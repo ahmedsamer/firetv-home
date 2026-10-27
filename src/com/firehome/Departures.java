@@ -20,21 +20,25 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * One stop's next departures, for the top-right corner: a line icon (a bus or an underground train) beside a small
- * line per direction with the line's name in a light shade of its colour, the direction and its next departure
- * ("U8 Wittenau 5 min"). Home Assistant publishes
+ * One stop's next departures, for the top-right corner: a line icon (a bus or an underground train) beside a row per
+ * direction in three aligned columns: the line's name in a light shade of its colour, the direction, and its next
+ * departure ("U8 | Wittenau | 5 min"). Home Assistant publishes
  * {"line", "color", "walk", "deps": [{"ts": epoch seconds, "dir", "delay": seconds, "x": cancelled}]} to
  * firetv/state/bus and firetv/state/metro; the minutes are worked out here, so tick() keeps them counting down
  * between updates. Departures sooner than the walk to the stop, and cancelled ones, are left out.
  */
 class Departures {
     private static final int MAX_DIRECTIONS = 2;
+    private static final int NAME_DP = 34;      // wide enough for "147" in bold
+    private static final int MINUTES_DP = 52;   // wide enough for "59 min"
     private static final int LATE_S = 120;   // a departure this late shows its minutes in amber
     private static final int AMBER = 0xFFFFB13B;
 
     private final float dp;
     private final LinearLayout view;
-    private final TextView details;
+    private final Context context;
+    private final float textSp;
+    private final LinearLayout rows;
     private final String fallbackLine;
     private JSONObject data;
 
@@ -50,10 +54,12 @@ class Departures {
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(px(iconDp), px(iconDp));
         iconLp.setMargins(0, 0, px(10), 0);
         view.addView(icon, iconLp);
-        details = text(context, textSp, 0xD9FFFFFF, 8, 1);
-        details.setGravity(Gravity.END);   // one direction per line, right-aligned against the screen's edge
-        // the text takes the rest of the width, so stacked stops keep their icons in one column at the left
-        view.addView(details, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        this.context = context;
+        this.textSp = textSp;
+        rows = new LinearLayout(context);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        // the rows take the rest of the width, so stacked stops keep their icons in one column at the left
+        view.addView(rows, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         view.setVisibility(View.GONE);
     }
 
@@ -101,25 +107,42 @@ class Departures {
             }
         }
 
-        SpannableStringBuilder small = new SpannableStringBuilder();
+        rows.removeAllViews();
         if (next.isEmpty()) {
-            small.append("No departures soon");
+            rows.addView(row(name, shade, "No departures soon", null));
         }
         for (Map.Entry<String, int[]> e : next.entrySet()) {
-            if (small.length() > 0) {
-                small.append('\n');
-            }
-            int at = small.length();
-            small.append(name);
-            small.setSpan(new ForegroundColorSpan(shade), at, small.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            small.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), at, small.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            small.append(' ').append(e.getKey()).append(' ');
-            appendMinutes(small, e.getValue());
-            appendUnit(small, 0.7f);
+            SpannableStringBuilder minutes = new SpannableStringBuilder();
+            appendMinutes(minutes, e.getValue());
+            appendUnit(minutes, 0.7f);
+            rows.addView(row(name, shade, e.getKey(), minutes));
         }
-        details.setText(small);
         view.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * One row in three columns, so every row of both stops lines up: the line's name (left, fixed width), the
+     * direction, and the minutes (right-aligned, fixed width).
+     */
+    private LinearLayout row(String name, int shade, String direction, CharSequence minutes) {
+        LinearLayout row = new LinearLayout(context);   // baseline-aligned
+        TextView line = text(context, textSp, shade, 8, 1);
+        line.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        line.setText(name);
+        line.setMinWidth(px(NAME_DP));
+        row.addView(line);
+        TextView towards = text(context, textSp, 0xD9FFFFFF, 8, 1);
+        towards.setText(direction);
+        towards.setPadding(px(6), 0, px(10), 0);
+        row.addView(towards, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        if (minutes != null) {
+            TextView when = text(context, textSp, 0xD9FFFFFF, 8, 1);
+            when.setText(minutes);
+            when.setGravity(Gravity.END);
+            when.setMinWidth(px(MINUTES_DP));
+            row.addView(when);
+        }
+        return row;
     }
 
     private static void appendMinutes(SpannableStringBuilder text, int[] dep) {
