@@ -156,12 +156,23 @@ public class HomeActivity extends Activity {
         phase = sunPhase();
         root.setBackground(new SkyBackground(phase));
 
-        // one line, "27th/Oct 5:53 PM": always 12-hour with AM/PM, whatever the TV's time setting (the same pattern for
-        // both formats); horizontal and baseline-aligned, so the date and "PM" sit on the time's line
+        // "27th" small above "Oct", then "5:53 PM": always 12-hour with AM/PM, whatever the TV's time setting (the same pattern for
+        // both formats); horizontal and baseline-aligned, so "Oct" and "PM" sit on the time's line
         LinearLayout corner = new LinearLayout(this);
-        TextView date = new TextView(this);
-        style(date, CLOCK_SP * 4 / 7, 0xE6FFFFFF, "sans-serif-medium");
-        date.setShadowLayer(px(10), 0, px(1), 0x66000000);
+        TextView day = new TextView(this);
+        style(day, CLOCK_SP * 2 / 7, 0xD9FFFFFF, "sans-serif-medium");
+        day.setShadowLayer(px(8), 0, px(1), 0x66000000);
+        TextView month = new TextView(this);
+        style(month, CLOCK_SP * 4 / 7, 0xE6FFFFFF, "sans-serif-medium");
+        month.setShadowLayer(px(10), 0, px(1), 0x66000000);
+        month.setIncludeFontPadding(false);
+        day.setIncludeFontPadding(false);
+        LinearLayout date = new LinearLayout(this);
+        date.setOrientation(LinearLayout.VERTICAL);
+        date.setGravity(Gravity.CENTER_HORIZONTAL);
+        date.addView(day);
+        date.addView(month);
+        date.setBaselineAlignedChildIndex(1);   // the month is what lines up with the time
         date.setPadding(0, 0, px(14), 0);
         TextClock time = new TextClock(this);
         time.setFormat12Hour("h:mm");
@@ -180,10 +191,10 @@ public class HomeActivity extends Activity {
 
             @Override
             public void afterTextChanged(android.text.Editable text) {
-                date.setText(dayAndMonth(Calendar.getInstance()));
+                showDate(day, month);
             }
         });
-        date.setText(dayAndMonth(Calendar.getInstance()));
+        showDate(day, month);
         TextClock half = new TextClock(this);
         half.setFormat12Hour("a");
         half.setFormat24Hour("a");
@@ -430,11 +441,13 @@ public class HomeActivity extends Activity {
         }
     }
 
-    /** "27th/Oct": the day of the month with its English ordinal, and the month's short name. */
-    static String dayAndMonth(Calendar day) {
-        int d = day.get(Calendar.DAY_OF_MONTH);
+    /** Today as "27th" (the day of the month with its English ordinal) and "Oct" (the month's short name). */
+    private static void showDate(TextView day, TextView month) {
+        Calendar now = Calendar.getInstance();
+        int d = now.get(Calendar.DAY_OF_MONTH);
         String suffix = d >= 11 && d <= 13 ? "th" : d % 10 == 1 ? "st" : d % 10 == 2 ? "nd" : d % 10 == 3 ? "rd" : "th";
-        return d + suffix + "/" + day.getDisplayName(Calendar.MONTH, Calendar.SHORT, java.util.Locale.ENGLISH);
+        day.setText(d + suffix);
+        month.setText(now.getDisplayName(Calendar.MONTH, Calendar.SHORT, java.util.Locale.ENGLISH));
     }
 
     /** The part of the day now, from Open-Meteo's sunrise/sunset for today when the weather has them. */
