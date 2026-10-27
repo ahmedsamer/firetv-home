@@ -284,7 +284,8 @@ public class HomeActivity extends Activity {
         bottom.setOrientation(LinearLayout.VERTICAL);
         bottom.setClipChildren(false);
 
-        caption = new TextView(this);
+        // the caption ("WATCH NOW") stands upright beside the name and the line about it, reading bottom to top
+        caption = new VerticalText(this);
         style(caption, 12, 0xB3FFFFFF, "sans-serif-medium");
         caption.setLetterSpacing(0.12f);
         title = new TextView(this);
@@ -294,11 +295,24 @@ public class HomeActivity extends Activity {
         about = new TextView(this);
         style(about, 15, 0xD9FFFFFF, "sans-serif");
         about.setShadowLayer(px(8), 0, px(1), 0x66000000);
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setPadding(px(52), 0, px(52), 0);
+        LinearLayout named = new LinearLayout(this);
+        named.setOrientation(LinearLayout.VERTICAL);
         for (TextView t : new TextView[] {caption, title, about}) {
             t.setSingleLine();
-            t.setPadding(px(52), 0, px(52), 0);
-            bottom.addView(t);
         }
+        LinearLayout.LayoutParams captionLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        captionLp.setMargins(0, 0, px(14), 0);   // a margin, not padding: padding would turn with the text
+        heading.addView(caption, captionLp);
+        named.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        named.addView(about, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        heading.addView(named);
+        bottom.addView(heading);
 
         row = new LinearLayout(this);
         row.setClipChildren(false);
