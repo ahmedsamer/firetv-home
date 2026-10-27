@@ -21,9 +21,8 @@ import java.util.Map;
 
 /**
  * One stop's next departures, for the top-right corner, laid out like the climate block (a step smaller): a line icon (a bus or an
- * underground train) and the minutes to the next departure in big digits, the line ("147", "U8") as a smaller tag in
- * a light shade of the line's colour, and below a small line per direction with its next departure
- * ("Hermannstr. 3 min" over "Wittenau 7 min"). Home Assistant publishes
+ * underground train) and the minutes to the next departure in big digits, and below a small line per direction with
+ * the line's name in a light shade of its colour, the direction and its next departure ("U8 Wittenau 5 min"). Home Assistant publishes
  * {"line", "color", "walk", "deps": [{"ts": epoch seconds, "dir", "delay": seconds, "x": cancelled}]} to
  * firetv/state/bus and firetv/state/metro; the minutes are worked out here, so tick() keeps them counting down
  * between updates. Departures sooner than the walk to the stop, and cancelled ones, are left out.
@@ -32,13 +31,11 @@ class Departures {
     /** Text sizes (sp) and icon size (dp), so the corner can match the climate block. */
     static final class Sizes {
         final float big;
-        final float tag;
         final float line;
         final int icon;
 
-        Sizes(float big, float tag, float line, int icon) {
+        Sizes(float big, float line, int icon) {
             this.big = big;
-            this.tag = tag;
             this.line = line;
             this.icon = icon;
         }
@@ -51,7 +48,6 @@ class Departures {
     private final float dp;
     private final LinearLayout view;
     private final TextView minutes;
-    private final TextView tag;
     private final TextView details;
     private final String fallbackLine;
     private JSONObject data;
@@ -71,12 +67,8 @@ class Departures {
         now.addView(icon, new LinearLayout.LayoutParams(px(sizes.icon), px(sizes.icon)));
         minutes = text(context, sizes.big, 0xFFFFFFFF, 12, 2);
         minutes.setPadding(px(10), 0, 0, 0);
-        tag = text(context, sizes.tag, 0xFFFFFFFF, 8, 1);
-        tag.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        tag.setPadding(px(10), 0, 0, 0);
         LinearLayout reading = new LinearLayout(context);   // baseline-aligned, like the climate's reading
         reading.addView(minutes);
-        reading.addView(tag);
         now.addView(reading);
         details = text(context, sizes.line, 0xD9FFFFFF, 8, 1);
         details.setGravity(Gravity.END);   // one direction per line, right-aligned
@@ -111,8 +103,8 @@ class Departures {
             return;
         }
         String line = data.optString("line", fallbackLine);
-        tag.setText(line.isEmpty() ? fallbackLine : line);
-        tag.setTextColor(light(colour(data.optString("color", ""), 0xFF7A3E9D)));
+        String name = line.isEmpty() ? fallbackLine : line;
+        int shade = light(colour(data.optString("color", ""), 0xFF7A3E9D));
 
         long now = System.currentTimeMillis() / 1000;
         int walk = data.optInt("walk", 0);
@@ -151,7 +143,12 @@ class Departures {
                 if (small.length() > 0) {
                     small.append('\n');
                 }
-                small.append(e.getKey()).append(' ');
+                int at = small.length();
+                small.append(name);
+                small.setSpan(new ForegroundColorSpan(shade), at, small.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                small.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), at, small.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                small.append(' ').append(e.getKey()).append(' ');
                 appendMinutes(small, e.getValue());
                 appendUnit(small, 0.7f);
             }
