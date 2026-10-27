@@ -175,6 +175,7 @@ public class HomeActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         dayLp.gravity = Gravity.END;
         date.addView(day, dayLp);
+        day.setTranslationY(3.5f * dp);   // drawn a touch lower, so its top lines up with the top of the time's digits
         date.addView(month, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         date.setBaselineAlignedChildIndex(1);   // the month is what lines up with the time
