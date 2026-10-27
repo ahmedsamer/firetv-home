@@ -151,6 +151,7 @@ class HomeBar {
         row.setClipChildren(false);
         for (Room r : rooms) {
             r.button = circle(new BarIcon(r.kind));
+            r.button.setId(View.generateViewId());
             ((BarIcon) ((ImageView) r.button.getChildAt(0)).getDrawable()).set(false, 0f, 0xFF4A3300);
             r.dot = new View(context);
             GradientDrawable dot = new GradientDrawable();
@@ -249,6 +250,20 @@ class HomeBar {
             lp.setMargins(px(6), 0, px(6), 0);
             panel.addView(d.button, lp);
             paint(d);
+        }
+        // pin left/right to the neighbouring buttons: Android's nearest-in-direction search would otherwise pick a
+        // dimmed app tile behind the panel, focus would leave it, and the panel would close
+        for (int i = 0; i < r.devices.size(); i++) {
+            GlowTile button = r.devices.get(i).button;
+            if (button.getId() == View.NO_ID) {
+                button.setId(View.generateViewId());
+            }
+        }
+        for (int i = 0; i < r.devices.size(); i++) {
+            GlowTile button = r.devices.get(i).button;
+            button.setNextFocusLeftId(r.devices.get(Math.max(0, i - 1)).button.getId());
+            button.setNextFocusRightId(r.devices.get(Math.min(r.devices.size() - 1, i + 1)).button.getId());
+            button.setNextFocusDownId(r.button.getId() == View.NO_ID ? View.NO_ID : r.button.getId());
         }
         open = r;
         if (behind != null) {
