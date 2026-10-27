@@ -117,6 +117,8 @@ public class HomeActivity extends Activity {
     private static final double HUMIDITY_HIGH = 60;
     private static final double CO2_HIGH = 1000;
     private static final int AMBER = 0xFFFFB13B;
+    private static final int COLDER = 0xFF8CCBFF;
+    private static final int WARMER = 0xFFFF9A7A;
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
 
     private float dp;
@@ -133,7 +135,6 @@ public class HomeActivity extends Activity {
     private String lastOpened;
     private View climate;
     private TextView climateTemp;
-    private ImageView outsideIcon;
     private TextView outsideDiff;
     private double indoor = Double.NaN;
     private TextView climateLine;
@@ -196,16 +197,11 @@ public class HomeActivity extends Activity {
         climateTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
         climateTemp.setPadding(px(14), 0, 0, 0);
         now.addView(climateTemp);
-        // the sky outside and the difference to it: "↓13°" means 13° colder outside than in
-        outsideIcon = new ImageView(this);
-        outsideIcon.setLayerType(View.LAYER_TYPE_SOFTWARE, null);   // the icon's soft shadow needs software drawing
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(px(40), px(40));
-        iconLp.setMargins(px(22), 0, 0, 0);
-        now.addView(outsideIcon, iconLp);
+        // the difference to outside: "↓13°" (blue) means 13° colder outside than in, "↑" (coral) warmer
         outsideDiff = new TextView(this);
         style(outsideDiff, 30, 0xD9FFFFFF, "sans-serif-medium");
         outsideDiff.setShadowLayer(px(8), 0, px(1), 0x66000000);
-        outsideDiff.setPadding(px(6), 0, 0, 0);
+        outsideDiff.setPadding(px(18), 0, 0, 0);
         now.addView(outsideDiff);
         climateLine = new TextView(this);
         style(climateLine, 20, 0xD9FFFFFF, "sans-serif-medium");
@@ -344,19 +340,18 @@ public class HomeActivity extends Activity {
         }, "weather").start();
     }
 
-    /** The outdoor sky and the outdoor-minus-indoor difference, beside the indoor temperature; hidden while either is
-     *  missing or the weather is over an hour old. */
+    /** The outdoor-minus-indoor difference, beside the indoor temperature; hidden while either is missing or the
+     *  weather is over an hour old. */
     private void showOutside() {
         Weather w = Weather.saved(this);
         boolean show = w != null && !Double.isNaN(indoor) && System.currentTimeMillis() - w.fetched < OUTSIDE_MAX_AGE_MS;
-        outsideIcon.setVisibility(show ? View.VISIBLE : View.GONE);
         outsideDiff.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) {
             return;
         }
-        outsideIcon.setImageDrawable(new WeatherIcon(w.kind(), w.day));
         long diff = Math.round(w.temperature - indoor);
         outsideDiff.setText(diff == 0 ? "=" : (diff < 0 ? "↓" : "↑") + Math.abs(diff) + "°");
+        outsideDiff.setTextColor(diff < 0 ? COLDER : diff > 0 ? WARMER : 0xD9FFFFFF);
     }
 
     /**
