@@ -43,6 +43,8 @@ class HomeBar {
 
     private static final Pattern STATE = Pattern.compile("['\"]state['\"]\\s*:\\s*['\"]([a-z_]+)['\"]");
     private static final Pattern POSITION = Pattern.compile("['\"]position['\"]\\s*:\\s*(-?\\d+)");
+    private static final Pattern CURRENT = Pattern.compile("['\"]current['\"]\\s*:\\s*(-?[\\d.]+)");
+    private static final Pattern TARGET = Pattern.compile("['\"]target['\"]\\s*:\\s*(-?[\\d.]+)");
     // the same height as the Appstore and Settings pills next to it
     private static final int SIZE_DP = 33;
     private static final int ON_ICON = 0xFFFFC857;   // an "on" device's icon; the same yellow as a room's dot
@@ -67,6 +69,8 @@ class HomeBar {
         Room room;
         String state = "unknown";
         int position = -1;
+        double current = Double.NaN;   // a thermostat's room temperature and the one it heats to
+        double target = Double.NaN;
         BarIcon icon;
         GlowTile button;
         boolean focused;
@@ -152,6 +156,7 @@ class HomeBar {
             case "kitchen": return BarIcon.Kind.KITCHEN;
             case "bath": return BarIcon.Kind.BATH;
             case "door": return BarIcon.Kind.DOOR;
+            case "thermostat": return BarIcon.Kind.THERMOSTAT;
             default: return BarIcon.Kind.LIGHT;
         }
     }
@@ -370,9 +375,15 @@ class HomeBar {
                 Matcher p = POSITION.matcher(payload);
                 String state = s.find() ? s.group(1) : "unknown";
                 int position = p.find() ? Integer.parseInt(p.group(1)) : -1;
+                Matcher c = CURRENT.matcher(payload);
+                Matcher t = TARGET.matcher(payload);
+                double current = c.find() ? Double.parseDouble(c.group(1)) : Double.NaN;
+                double target = t.find() ? Double.parseDouble(t.group(1)) : Double.NaN;
                 main.post(() -> {
                     d.state = state;
                     d.position = position;
+                    d.current = current;
+                    d.target = target;
                     paint(d);
                     if (d.room != null) {
                         paint(d.room);
@@ -407,7 +418,7 @@ class HomeBar {
             // 1 %, so closed blackouts would show as open. Same 2 % rule as the HA automation.
             return d.position > 2;
         }
-        return d.state.equals("on") || d.state.equals("open") || d.state.equals("opening");
+        return d.state.equals("on") || d.state.equals("open") || d.state.equals("opening") || d.state.equals("heat");
     }
 
     private int activeCount(Room r) {
@@ -471,10 +482,20 @@ class HomeBar {
         } else if (d.kind == BarIcon.Kind.BLIND || d.kind == BarIcon.Kind.CURTAIN) {
             String now = d.position > 2 && d.position < 98 ? d.position + "% open" : active(d) ? "Open" : "Closed";
             what = now + " · press select to " + (active(d) ? "close" : "open") + ".";
+        } else if (d.kind == BarIcon.Kind.THERMOSTAT) {
+            String room = Double.isNaN(d.current) ? "" : " · " + degrees(d.current) + " now";
+            what = active(d)
+                    ? "Heating to " + (Double.isNaN(d.target) ? "?" : degrees(d.target)) + room + " · press select to turn off."
+                    : "Off" + room + " · press select to heat.";
         } else {
             what = (active(d) ? "On" : "Off") + " · press select to turn " + (active(d) ? "off" : "on") + ".";
         }
         focus.show(d.room != null ? d.room.label.toUpperCase() : "", d.label, what);
+    }
+
+    /** 21 → "21°", 21.5 → "21.5°". */
+    private static String degrees(double t) {
+        return (t == Math.rint(t) ? String.valueOf((long) t) : String.format(java.util.Locale.ROOT, "%.1f", t)) + "°";
     }
 
     private int px(int v) {

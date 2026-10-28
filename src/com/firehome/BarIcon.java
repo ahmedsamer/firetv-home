@@ -11,13 +11,13 @@ import android.graphics.drawable.Drawable;
 
 /**
  * Line icons for the Home Assistant bar, drawn in code: devices (a bulb, a ceiling pendant, a desk, a bed, a fan, a
- * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, a bus and an underground train for the departures, and an app grid with a plus and a gear for
- * the Appstore and Settings buttons. "On" (or open) draws
+ * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, a bus and an underground train for the departures, an app grid with a plus and a gear for
+ * the Appstore and Settings buttons, and a thermometer for the radiator thermostats. "On" (or open) draws
  * them in the accent colour (the bar's warm yellow) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {
-    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME, BUS, METRO, STORE, SETTINGS, TV }
+    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME, BUS, METRO, STORE, SETTINGS, TV, THERMOSTAT }
 
     private final Kind kind;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -197,6 +197,27 @@ class BarIcon extends Drawable {
                 canvas.drawRoundRect(new RectF(s * 0.08f, s * 0.16f, s * 0.92f, s * 0.7f), s * 0.07f, s * 0.07f, line);
                 canvas.drawLine(s * 0.5f, s * 0.7f, s * 0.5f, s * 0.84f, line);
                 canvas.drawLine(s * 0.3f, s * 0.86f, s * 0.7f, s * 0.86f, line);
+                break;
+            }
+            case THERMOSTAT: {
+                // a thermometer with a scale; heating fills the bulb and the column
+                Path glass = new Path();
+                glass.addRoundRect(new RectF(s * 0.38f, s * 0.06f, s * 0.62f, s * 0.66f), s * 0.12f, s * 0.12f,
+                        Path.Direction.CW);
+                Path reservoir = new Path();
+                reservoir.addCircle(s * 0.5f, s * 0.76f, s * 0.17f, Path.Direction.CW);
+                glass.op(reservoir, Path.Op.UNION);
+                canvas.drawPath(glass, line);
+                if (on) {
+                    fill.setAlpha(230);
+                    canvas.drawCircle(s * 0.5f, s * 0.76f, s * 0.09f, fill);
+                    canvas.drawRect(s * 0.47f, s * 0.3f, s * 0.53f, s * 0.72f, fill);
+                } else {
+                    canvas.drawCircle(s * 0.5f, s * 0.76f, s * 0.07f, fill);
+                }
+                for (float y : new float[] {0.18f, 0.3f, 0.42f}) {
+                    canvas.drawLine(s * 0.72f, s * y, s * 0.82f, s * y, line);
+                }
                 break;
             }
             case BUS: {
