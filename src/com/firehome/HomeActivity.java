@@ -49,7 +49,7 @@ import java.util.Map;
 /**
  * A tvOS-style home screen with only the apps you installed on it. HomeWatcher brings it up whenever Amazon's home
  * is started. One row of apps along the bottom of a sky wallpaper; the focused app's name and a line about it sit
- * above the row, and glass buttons below it: Appstore and Settings on the left, Fire TV home at the far right.
+ * above the row, and glass buttons below it: the Home Assistant rooms on the left, Fire TV, Appstore and Settings on the right.
  * PINNED come first in this order; any other app you install later is added after them.
  */
 public class HomeActivity extends Activity {
@@ -348,20 +348,20 @@ public class HomeActivity extends Activity {
         scrollLp.setMargins(0, px(6), 0, 0);
         bottom.addView(scroll, scrollLp);
 
-        // Fire TV (the way out to Amazon's home), Appstore and Settings at the left, the Home Assistant bar (if
-        // configured) at the right
+        // the Home Assistant bar (if configured) at the left; Fire TV (the way out to Amazon's home), Appstore and
+        // Settings at the right
         FrameLayout buttons = new FrameLayout(this);
         buttons.setClipChildren(false);
         buttons.setClipToPadding(false);   // a focused bar button grows past the row's edge
         buttons.setPadding(px(48), px(4), px(48), 0);
-        LinearLayout left = new LinearLayout(this);
-        left.addView(iconButton(fireTvLogo(), 3, "Fire TV", "AMAZON", "Amazon's home screen, for 10 minutes.",
+        LinearLayout system = new LinearLayout(this);
+        system.addView(iconButton(fireTvLogo(), 3, "Fire TV", "AMAZON", "Amazon's home screen, for 10 minutes.",
                 v -> confirmAmazonHome()));
-        left.addView(iconButton(appstoreLogo(), 3, "Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
-        left.addView(iconButton(BarIcon.Kind.SETTINGS, "Settings", "SYSTEM", "Fire TV settings, network and apps.",
+        system.addView(iconButton(appstoreLogo(), 3, "Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
+        system.addView(iconButton(BarIcon.Kind.SETTINGS, "Settings", "SYSTEM", "Fire TV settings, network and apps.",
                 v -> openSettings()));
-        buttons.addView(left, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
+        buttons.addView(system, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.CENTER_VERTICAL));
         bar = HomeBar.load(this, dp, this::show);
         if (bar != null) {
             bar.onExtra((name, payload) -> {
@@ -378,7 +378,7 @@ public class HomeActivity extends Activity {
             showClimate(getSharedPreferences("climate", MODE_PRIVATE).getString("json", null), false);
             bar.start();   // one connection for the app's lifetime: pausing on every Home press would race it
             buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.CENTER_VERTICAL));
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
         }
         bottom.addView(buttons, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -388,10 +388,10 @@ public class HomeActivity extends Activity {
         bottomLp.setMargins(0, 0, 0, px(34));
         if (bar != null) {
             // a room's controls open in a glass panel just above the bottom row, over the app row's edge, at the
-            // right like the room buttons
+            // left like the room buttons
             FrameLayout.LayoutParams panelLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.END);
-            panelLp.setMargins(0, 0, px(48), px(88));
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.START);
+            panelLp.setMargins(px(48), 0, 0, px(88));
             root.addView(bar.panel(), panelLp);
             bar.dimWhileOpen(scroll);
         }
