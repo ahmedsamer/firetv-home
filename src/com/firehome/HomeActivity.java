@@ -124,6 +124,7 @@ public class HomeActivity extends Activity {
     private static final float UNIT_SIZE = 0.7f;
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
+    private static final int CLIMATE_SP = 37;   // the indoor temperature; the rest of the corner scales with it
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
 
     private float dp;
@@ -231,7 +232,7 @@ public class HomeActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(clockColumn, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
 
-        // the indoor climate from Home Assistant, top left, the same size and shadow as the clock; empty until there is
+        // the indoor climate from Home Assistant, top left, a little smaller than the clock; empty until there is
         // something to show
         LinearLayout climate = new LinearLayout(this);
         this.climate = climate;
@@ -243,22 +244,22 @@ public class HomeActivity extends Activity {
         BarIcon houseIcon = new BarIcon(BarIcon.Kind.HOME);
         houseIcon.set(false, 0f, 0);
         house.setImageDrawable(houseIcon);
-        now.addView(house, new LinearLayout.LayoutParams(px(36), px(36)));
+        now.addView(house, new LinearLayout.LayoutParams(px(29), px(29)));
         climateTemp = new TextView(this);
-        style(climateTemp, CLOCK_SP, 0xFFFFFFFF, "sans-serif-medium");
-        climateTemp.setShadowLayer(px(12), 0, px(2), 0x66000000);
-        climateTemp.setPadding(px(12), 0, 0, 0);
+        style(climateTemp, CLIMATE_SP, 0xFFFFFFFF, "sans-serif-medium");
+        climateTemp.setShadowLayer(px(10), 0, px(2), 0x66000000);
+        climateTemp.setPadding(px(10), 0, 0, 0);
         LinearLayout reading = new LinearLayout(this);   // horizontal and baseline-aligned, like the clock's "PM"
         reading.addView(climateTemp);
         now.addView(reading);
         // how the home compares with outside: "↑13°" (coral) means 13° warmer at home than outside, "↓" (blue) cooler
         outsideDiff = new TextView(this);
-        style(outsideDiff, 25, 0xD9FFFFFF, "sans-serif-medium");
+        style(outsideDiff, 20, 0xD9FFFFFF, "sans-serif-medium");
         outsideDiff.setShadowLayer(px(8), 0, px(1), 0x66000000);
-        outsideDiff.setPadding(px(15), 0, 0, 0);
+        outsideDiff.setPadding(px(12), 0, 0, 0);
         reading.addView(outsideDiff);
         climateLine = new TextView(this);
-        style(climateLine, 17, 0xD9FFFFFF, "sans-serif-medium");
+        style(climateLine, 14, 0xD9FFFFFF, "sans-serif-medium");
         climateLine.setShadowLayer(px(8), 0, px(1), 0x66000000);
         climate.addView(now);
         climate.addView(climateLine);
