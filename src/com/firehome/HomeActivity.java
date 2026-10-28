@@ -355,7 +355,7 @@ public class HomeActivity extends Activity {
         buttons.setClipToPadding(false);   // a focused bar button grows past the row's edge
         buttons.setPadding(px(48), px(4), px(48), 0);
         LinearLayout left = new LinearLayout(this);
-        left.addView(iconButton(BarIcon.Kind.STORE, "Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
+        left.addView(iconButton(appstoreLogo(), 3, "Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
         left.addView(iconButton(BarIcon.Kind.SETTINGS, "Settings", "SYSTEM", "Fire TV settings, network and apps.",
                 v -> openSettings()));
         buttons.addView(left, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -948,6 +948,39 @@ public class HomeActivity extends Activity {
         BarIcon tv = new BarIcon(BarIcon.Kind.TV);
         tv.set(false, 0f, 0);
         return tv;
+    }
+
+    /**
+     * The Appstore's own "apps" logo, lifted off its white square for the dark glass: the white goes, the black
+     * lettering turns white and the orange smile stays orange. The drawn app grid if the Appstore can't be read.
+     */
+    private Drawable appstoreLogo() {
+        Drawable icon;
+        try {
+            icon = sharpIcon(getPackageManager().getApplicationInfo(APPSTORE, 0));
+        } catch (PackageManager.NameNotFoundException e) {
+            BarIcon grid = new BarIcon(BarIcon.Kind.STORE);
+            grid.set(false, 0f, 0);
+            return grid;
+        }
+        int n = 192;
+        Bitmap bitmap = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888);
+        icon.setBounds(0, 0, n, n);
+        icon.draw(new Canvas(bitmap));
+        int[] pixels = new int[n * n];
+        bitmap.getPixels(pixels, 0, n, 0, 0, n, n);
+        for (int i = 0; i < pixels.length; i++) {
+            int c = pixels[i];
+            int r = (c >> 16) & 0xFF;
+            int g = (c >> 8) & 0xFF;
+            int b = c & 0xFF;
+            int least = Math.min(r, Math.min(g, b));
+            int most = Math.max(r, Math.max(g, b));
+            int alpha = (255 - least) * (c >>> 24) / 255;   // white paper → clear, ink → solid
+            pixels[i] = (alpha << 24) | (most - least > 60 ? c & 0xFFFFFF : 0xFFFFFF);   // colour stays, grey turns white
+        }
+        bitmap.setPixels(pixels, 0, n, 0, 0, n, n);
+        return new BitmapDrawable(getResources(), bitmap);
     }
 
     /** The room buttons' glass: brighter, with a white ring, when focused. */
