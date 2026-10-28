@@ -131,9 +131,7 @@ public class HomeActivity extends Activity {
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
 
     private float dp;
-    // the macOS Dock's magnification for the app row: the focused tile, its neighbours, the next ones out
-    private static final float[] DOCK = {1.14f, 1.07f, 1.025f};
-    private static final long DOCK_MS = 240L;
+    private int lastFocusedTile = -1;
     private HomeBar bar;
     private SkyBackground.Phase phase;
     private FrameLayout root;
@@ -903,16 +901,21 @@ public class HomeActivity extends Activity {
         tile.setOnFocusChangeListener((v, focused) -> {
             tile.setGlowing(focused);
             if (focused) {
-                magnify(row.indexOfChild(v));
+                // tvOS: only the focused tile reacts. It springs up, tips slightly as if pushed in the direction you
+                // moved, settles flat, and a sheen of light crosses it; its neighbours stay as they are
+                int index = row.indexOfChild(v);
+                int moved = lastFocusedTile < 0 || index == lastFocusedTile ? 0 : index > lastFocusedTile ? 1 : -1;
+                if (Math.abs(index - lastFocusedTile) > 1 && lastFocusedTile >= 0) {
+                    moved = -moved;   // round the end of the row: the press was the other way
+                }
+                v.setRotationY(-6f * moved);
+                lastFocusedTile = index;
+                v.animate().scaleX(1.14f).scaleY(1.14f).rotationY(0f).translationZ(px(12)).setDuration(420)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start();
                 tile.sweep();
             } else {
-                // focus may be moving to the next tile, which magnifies the row itself; only if it left the row
-                // altogether does everything settle back
-                row.post(() -> {
-                    if (row.findFocus() == null) {
-                        magnify(-1);
-                    }
-                });
+                v.animate().scaleX(1f).scaleY(1f).rotationY(0f).translationZ(0).setDuration(220)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
             }
             if (focused) {
                 show(info[0], name, info[1]);
@@ -923,37 +926,6 @@ public class HomeActivity extends Activity {
     }
 
     /** Scrolls the row so the focused tile, grown by its focus scale, keeps a margin from both screen edges. */
-    /**
-     * The macOS Dock's magnification: the focused tile grows most, its neighbours a little, and the rest of the row
-     * slides outwards to make room, so nothing overlaps. -1 lets every tile settle back to its normal size and place.
-     */
-    private void magnify(int focused) {
-        int n = row.getChildCount();
-        float[] scale = new float[n];
-        for (int i = 0; i < n; i++) {
-            int distance = focused < 0 ? Integer.MAX_VALUE : Math.abs(i - focused);
-            scale[i] = distance < DOCK.length ? DOCK[distance] : 1f;
-        }
-        for (int i = 0; i < n; i++) {
-            View v = row.getChildAt(i);
-            float shift = 0;
-            if (focused >= 0 && i != focused) {
-                // half of each tile's growth on the near side pushes this one along: the focused tile's, twice for
-                // every tile in between (they grow on both sides), and this tile's own
-                int step = i > focused ? 1 : -1;
-                float half = v.getWidth() / 2f;
-                shift = (scale[focused] - 1) * half + (scale[i] - 1) * half;
-                for (int k = focused + step; k != i; k += step) {
-                    shift += 2 * (scale[k] - 1) * half;
-                }
-                shift *= step;
-            }
-            v.animate().scaleX(scale[i]).scaleY(scale[i]).translationX(shift)
-                    .translationZ(i == focused ? px(12) : 0).setDuration(DOCK_MS)
-                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start();
-        }
-    }
-
     private void keepVisible(View tile) {
         int margin = px(46);
         int x = scroll.getScrollX();
@@ -1061,13 +1033,18 @@ public class HomeActivity extends Activity {
         return bg;
     }
 
-    /** Asks before handing the screen to Amazon's home, which then stays for 10 minutes. Cancel has the focus. */
+    /**
+     * Asks before handing the screen to Amazon's home, which then stays for 10 minutes. Laid out like a tvOS alert:
+     * centred title and message, full-width buttons stacked with Cancel last; Cancel has the focus.
+     */
     private void confirmAmazonHome() {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(px(28), px(22), px(28), px(20));
+        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setPadding(px(28), px(24), px(28), px(20));
+        box.setMinimumWidth(px(360));
         GradientDrawable panel = new GradientDrawable();
         panel.setColor(0xF20B2530);
         panel.setCornerRadius(px(20));
@@ -1075,24 +1052,42 @@ public class HomeActivity extends Activity {
         box.setBackground(panel);
         TextView question = new TextView(this);
         style(question, 22, 0xFFFFFFFF, "sans-serif-medium");
+        question.setGravity(Gravity.CENTER);
         question.setText("Open Amazon's home?");
         box.addView(question);
         TextView detail = new TextView(this);
         style(detail, 14, 0xD9FFFFFF, "sans-serif");
+        detail.setGravity(Gravity.CENTER);
         detail.setText("For the next 10 minutes, Home goes to Amazon's home instead of this screen.");
-        detail.setPadding(0, px(8), 0, px(18));
-        detail.setMaxWidth(px(340));
+        detail.setPadding(0, px(8), 0, px(16));
+        detail.setMaxWidth(px(320));
         box.addView(detail);
-        LinearLayout choices = new LinearLayout(this);
-        choices.setGravity(Gravity.END);
-        TextView cancel = pill("Cancel", v -> dialog.dismiss());
-        choices.addView(cancel);
-        choices.addView(pill("Open", v -> {
+        TextView open = pill("Open Amazon's Home", v -> {
             dialog.dismiss();
             openAmazonHome();
-        }));
-        box.addView(choices, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+        });
+        TextView cancel = pill("Cancel", v -> dialog.dismiss());
+        box.setClipChildren(false);
+        box.setClipToPadding(false);   // a lifted button reaches into the padding; clipped there, it lost its round ends
+        for (TextView choice : new TextView[] {open, cancel}) {
+            choice.setGravity(Gravity.CENTER);
+            // tvOS alert buttons: rounded rectangles, white when focused, lifting less than a small pill would
+            GradientDrawable idle = glass(12, false);
+            GradientDrawable lit = new GradientDrawable();
+            lit.setCornerRadius(px(12));
+            lit.setColor(0xF2FFFFFF);
+            choice.setBackground(idle);
+            View.OnFocusChangeListener look = choice.getOnFocusChangeListener();
+            choice.setOnFocusChangeListener((v, focused) -> {
+                look.onFocusChange(v, focused);
+                v.setBackground(focused ? lit : idle);
+                v.animate().scaleX(focused ? 1.03f : 1f).scaleY(focused ? 1.03f : 1f).setDuration(150).start();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, px(4), 0, px(4));
+            box.addView(choice, lp);
+        }
         dialog.setContentView(box);
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
