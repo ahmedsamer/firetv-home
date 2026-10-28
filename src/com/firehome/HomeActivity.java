@@ -28,6 +28,7 @@ import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.view.PixelCopy;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -635,6 +636,17 @@ public class HomeActivity extends Activity {
     }
 
     /** Rebuilds the row and returns the tile to focus: the app opened last, else the first one. */
+    /** Moves the focus to `to` when `key` is pressed; the row's ends use it to go round. */
+    private static boolean wrap(int code, KeyEvent event, int key, View to) {
+        if (code != key) {
+            return false;
+        }
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            to.requestFocus();
+        }
+        return true;
+    }
+
     private View fillRow() {
         Map<String, ResolveInfo> apps = installedApps();
         // only rebuild when an app was installed, removed or updated (its APK path changes): every rebuild decodes all
@@ -650,6 +662,14 @@ public class HomeActivity extends Activity {
                 View tile = tile(app.getKey(), app.getValue());
                 tile.setTag(app.getKey());
                 row.addView(tile);
+            }
+            // the row goes round: right from the last app comes to the first, left from the first to the last. A key
+            // listener, because the scroll view eats an arrow at its end before nextFocusRight would be looked at
+            if (row.getChildCount() > 1) {
+                View first = row.getChildAt(0);
+                View last = row.getChildAt(row.getChildCount() - 1);
+                last.setOnKeyListener((v, code, event) -> wrap(code, event, KeyEvent.KEYCODE_DPAD_RIGHT, first));
+                first.setOnKeyListener((v, code, event) -> wrap(code, event, KeyEvent.KEYCODE_DPAD_LEFT, last));
             }
         }
         if (apps.isEmpty()) {
