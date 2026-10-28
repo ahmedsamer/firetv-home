@@ -125,6 +125,7 @@ public class HomeActivity extends Activity {
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
     private static final int CLIMATE_SP = 37;   // the indoor temperature; the rest of the corner scales with it
+    private static final int ICON_BUTTON_DP = 33;   // the Appstore, Settings and Fire TV buttons: as big as a room's
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
 
     private float dp;
@@ -353,8 +354,9 @@ public class HomeActivity extends Activity {
         buttons.setClipToPadding(false);   // a focused bar button grows past the row's edge
         buttons.setPadding(px(48), px(4), px(48), 0);
         LinearLayout left = new LinearLayout(this);
-        left.addView(pill("Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
-        left.addView(pill("Settings", "SYSTEM", "Fire TV settings, network and apps.", v -> openSettings()));
+        left.addView(iconButton(BarIcon.Kind.STORE, "Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
+        left.addView(iconButton(BarIcon.Kind.SETTINGS, "Settings", "SYSTEM", "Fire TV settings, network and apps.",
+                v -> openSettings()));
         buttons.addView(left, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL));
         bar = HomeBar.load(this, dp, this::show);
@@ -375,7 +377,8 @@ public class HomeActivity extends Activity {
             buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
         }
-        buttons.addView(pill("Fire TV home", "AMAZON", "Amazon's home screen, for 10 minutes.", v -> openAmazonHome()), new FrameLayout.LayoutParams(
+        buttons.addView(iconButton(BarIcon.Kind.TV, "Fire TV", "AMAZON", "Amazon's home screen, for 10 minutes.",
+                v -> confirmAmazonHome()), new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.END | Gravity.CENTER_VERTICAL));
         bottom.addView(buttons, new LinearLayout.LayoutParams(
@@ -891,17 +894,85 @@ public class HomeActivity extends Activity {
         }
     }
 
-    /** A pill that, like an app tile, describes itself above the row while focused. */
-    private TextView pill(String label, String captionText, String aboutText, View.OnClickListener click) {
-        TextView pill = pill(label, click);
-        View.OnFocusChangeListener look = pill.getOnFocusChangeListener();
-        pill.setOnFocusChangeListener((v, focused) -> {
-            look.onFocusChange(v, focused);
+    /**
+     * A round glass button with a line icon, the same as the Home Assistant bar's room buttons, that like an app tile
+     * describes itself above the row while focused.
+     */
+    private View iconButton(BarIcon.Kind kind, String label, String captionText, String aboutText,
+            View.OnClickListener click) {
+        FrameLayout button = new FrameLayout(this);
+        BarIcon icon = new BarIcon(kind);
+        icon.set(false, 0f, 0);
+        ImageView image = new ImageView(this);
+        image.setImageDrawable(icon);
+        int pad = px(7);
+        image.setPadding(pad, pad, pad, pad);
+        button.addView(image, new FrameLayout.LayoutParams(px(ICON_BUTTON_DP), px(ICON_BUTTON_DP)));
+        button.setContentDescription(label);
+        button.setBackground(roundGlass(false));
+        button.setFocusable(true);
+        button.setOnClickListener(click);
+        button.setOnFocusChangeListener((v, focused) -> {
+            v.setBackground(roundGlass(focused));
+            v.animate().scaleX(focused ? 1.15f : 1f).scaleY(focused ? 1.15f : 1f).setDuration(150).start();
             if (focused) {
                 show(captionText, label, aboutText);
             }
         });
-        return pill;
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(ICON_BUTTON_DP), px(ICON_BUTTON_DP));
+        lp.setMargins(px(5), 0, px(5), 0);
+        button.setLayoutParams(lp);
+        return button;
+    }
+
+    /** The room buttons' glass: brighter, with a white ring, when focused. */
+    private GradientDrawable roundGlass(boolean focused) {
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                focused ? new int[] {0x66FFFFFF, 0x33FFFFFF} : new int[] {0x33FFFFFF, 0x17FFFFFF});
+        bg.setCornerRadius(px(ICON_BUTTON_DP) / 2f);
+        bg.setStroke(Math.max(1, px(focused ? 2 : 1)), focused ? 0xF2FFFFFF : 0x40FFFFFF);
+        return bg;
+    }
+
+    /** Asks before handing the screen to Amazon's home, which then stays for 10 minutes. Cancel has the focus. */
+    private void confirmAmazonHome() {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(px(28), px(22), px(28), px(20));
+        GradientDrawable panel = new GradientDrawable();
+        panel.setColor(0xF20B2530);
+        panel.setCornerRadius(px(20));
+        panel.setStroke(Math.max(1, px(1)), 0x40FFFFFF);
+        box.setBackground(panel);
+        TextView question = new TextView(this);
+        style(question, 22, 0xFFFFFFFF, "sans-serif-medium");
+        question.setText("Open Amazon's home?");
+        box.addView(question);
+        TextView detail = new TextView(this);
+        style(detail, 14, 0xD9FFFFFF, "sans-serif");
+        detail.setText("For the next 10 minutes, Home goes to Amazon's home instead of this screen.");
+        detail.setPadding(0, px(8), 0, px(18));
+        detail.setMaxWidth(px(340));
+        box.addView(detail);
+        LinearLayout choices = new LinearLayout(this);
+        choices.setGravity(Gravity.END);
+        TextView cancel = pill("Cancel", v -> dialog.dismiss());
+        choices.addView(cancel);
+        choices.addView(pill("Open", v -> {
+            dialog.dismiss();
+            openAmazonHome();
+        }));
+        box.addView(choices, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        dialog.setContentView(box);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
+            dialog.getWindow().setDimAmount(0.6f);
+        }
+        dialog.show();
+        cancel.requestFocus();
     }
 
     private TextView pill(String label, View.OnClickListener click) {

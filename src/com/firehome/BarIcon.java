@@ -11,12 +11,13 @@ import android.graphics.drawable.Drawable;
 
 /**
  * Line icons for the Home Assistant bar, drawn in code: devices (a bulb, a ceiling pendant, a desk, a bed, a fan, a
- * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, and a bus and an underground train for the departures. "On" (or open) draws
+ * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, a bus and an underground train for the departures, and a shopping bag, a gear and a TV for the
+ * Appstore, Settings and Fire TV buttons. "On" (or open) draws
  * them in the accent colour (the bar's warm yellow) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {
-    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME, BUS, METRO }
+    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME, BUS, METRO, STORE, SETTINGS, TV }
 
     private final Kind kind;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -163,6 +164,40 @@ class BarIcon extends Drawable {
                 walls.lineTo(s * 0.8f, s * 0.38f);
                 canvas.drawPath(walls, line);
                 canvas.drawRect(s * 0.42f, s * 0.62f, s * 0.58f, s * 0.9f, line);
+                break;
+            }
+            case STORE: {
+                // a shopping bag with its handle
+                canvas.drawRoundRect(new RectF(s * 0.18f, s * 0.38f, s * 0.82f, s * 0.9f), s * 0.07f, s * 0.07f, line);
+                Path handle = new Path();
+                handle.moveTo(s * 0.36f, s * 0.38f);
+                handle.lineTo(s * 0.36f, s * 0.3f);
+                handle.arcTo(new RectF(s * 0.36f, s * 0.14f, s * 0.64f, s * 0.42f), 180f, 180f);
+                handle.lineTo(s * 0.64f, s * 0.38f);
+                canvas.drawPath(handle, line);
+                break;
+            }
+            case SETTINGS: {
+                // a gear: a ring with eight teeth around a hole
+                canvas.drawCircle(s * 0.5f, s * 0.5f, s * 0.25f, line);
+                canvas.drawCircle(s * 0.5f, s * 0.5f, s * 0.09f, line);
+                float width = line.getStrokeWidth();
+                line.setStrokeWidth(s * 0.12f);
+                line.setStrokeCap(Paint.Cap.BUTT);
+                for (int i = 0; i < 8; i++) {
+                    double a = Math.toRadians(i * 45);
+                    canvas.drawLine(s * (0.5f + 0.27f * (float) Math.cos(a)), s * (0.5f + 0.27f * (float) Math.sin(a)),
+                            s * (0.5f + 0.4f * (float) Math.cos(a)), s * (0.5f + 0.4f * (float) Math.sin(a)), line);
+                }
+                line.setStrokeCap(Paint.Cap.ROUND);
+                line.setStrokeWidth(width);
+                break;
+            }
+            case TV: {
+                // a screen on a small stand
+                canvas.drawRoundRect(new RectF(s * 0.08f, s * 0.16f, s * 0.92f, s * 0.7f), s * 0.07f, s * 0.07f, line);
+                canvas.drawLine(s * 0.5f, s * 0.7f, s * 0.5f, s * 0.84f, line);
+                canvas.drawLine(s * 0.3f, s * 0.86f, s * 0.7f, s * 0.86f, line);
                 break;
             }
             case BUS: {
