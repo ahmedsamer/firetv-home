@@ -434,8 +434,19 @@ class HomeBar {
     }
 
     private GradientDrawable glass(boolean focused) {
+        return glass(focused, 0);
+    }
+
+    /**
+     * The buttons' glass. A device that is on gets its state colour (`tint`, 0 for none) washed into the glass, as
+     * Apple's Home tiles light up; the focus ring stays white whatever the state, so focus always looks the same.
+     */
+    private GradientDrawable glass(boolean focused, int tint) {
+        int rgb = (tint == 0 ? 0xFFFFFF : tint) & 0xFFFFFF;
+        int top = tint == 0 ? (focused ? 0x66 : 0x33) : (focused ? 0x80 : 0x4D);
+        int bottom = tint == 0 ? (focused ? 0x33 : 0x17) : (focused ? 0x4D : 0x26);
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                focused ? new int[] {0x66FFFFFF, 0x33FFFFFF} : new int[] {0x33FFFFFF, 0x17FFFFFF});
+                new int[] {top << 24 | rgb, bottom << 24 | rgb});
         bg.setCornerRadius(px(SIZE_DP) / 2f);
         bg.setStroke(Math.max(1, px(focused ? 2 : 1)), focused ? 0xF2FFFFFF : 0x40FFFFFF);
         return bg;
@@ -457,9 +468,10 @@ class HomeBar {
         boolean on = online && active(d);
         float level = d.position >= 0 ? d.position / 100f : (on ? 1f : 0f);
         // every button is glass; an "on" device shows it in its icon, drawn in warm yellow
-        d.icon.set(on, level, d.kind == BarIcon.Kind.THERMOSTAT ? HEAT_ICON : ON_ICON);
+        int accent = d.kind == BarIcon.Kind.THERMOSTAT ? HEAT_ICON : ON_ICON;
+        d.icon.set(on, level, accent);
         boolean usable = online && !d.state.equals("unavailable") && !d.state.equals("unknown");
-        d.button.setBackground(glass(d.focused));
+        d.button.setBackground(glass(d.focused, on ? accent : 0));
         d.button.setAlpha(usable ? 1f : 0.45f);
     }
 
