@@ -131,7 +131,9 @@ public class HomeActivity extends Activity {
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
 
     private float dp;
-    private int lastFocusedTile = -1;
+    // the macOS Dock's magnification for the app row: the focused tile, its neighbours, the next ones out
+    private static final float[] DOCK = {1.14f, 1.07f, 1.025f};
+    private static final long DOCK_MS = 240L;
     private HomeBar bar;
     private SkyBackground.Phase phase;
     private FrameLayout root;
@@ -901,17 +903,16 @@ public class HomeActivity extends Activity {
         tile.setOnFocusChangeListener((v, focused) -> {
             tile.setGlowing(focused);
             if (focused) {
-                // tvOS-style: the tile springs up, tips slightly as if pushed in the direction you moved, settles
-                // flat, and a sheen of light crosses it
-                int index = row.indexOfChild(v);
-                v.setRotationY(lastFocusedTile < 0 || index == lastFocusedTile ? 0f : index > lastFocusedTile ? -6f : 6f);
-                lastFocusedTile = index;
-                v.animate().scaleX(1.14f).scaleY(1.14f).rotationY(0f).translationZ(px(12)).setDuration(420)
-                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start();
+                magnify(row.indexOfChild(v));
                 tile.sweep();
             } else {
-                v.animate().scaleX(1f).scaleY(1f).rotationY(0f).translationZ(0).setDuration(220)
-                        .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+                // focus may be moving to the next tile, which magnifies the row itself; only if it left the row
+                // altogether does everything settle back
+                row.post(() -> {
+                    if (row.findFocus() == null) {
+                        magnify(-1);
+                    }
+                });
             }
             if (focused) {
                 show(info[0], name, info[1]);
@@ -922,6 +923,37 @@ public class HomeActivity extends Activity {
     }
 
     /** Scrolls the row so the focused tile, grown by its focus scale, keeps a margin from both screen edges. */
+    /**
+     * The macOS Dock's magnification: the focused tile grows most, its neighbours a little, and the rest of the row
+     * slides outwards to make room, so nothing overlaps. -1 lets every tile settle back to its normal size and place.
+     */
+    private void magnify(int focused) {
+        int n = row.getChildCount();
+        float[] scale = new float[n];
+        for (int i = 0; i < n; i++) {
+            int distance = focused < 0 ? Integer.MAX_VALUE : Math.abs(i - focused);
+            scale[i] = distance < DOCK.length ? DOCK[distance] : 1f;
+        }
+        for (int i = 0; i < n; i++) {
+            View v = row.getChildAt(i);
+            float shift = 0;
+            if (focused >= 0 && i != focused) {
+                // half of each tile's growth on the near side pushes this one along: the focused tile's, twice for
+                // every tile in between (they grow on both sides), and this tile's own
+                int step = i > focused ? 1 : -1;
+                float half = v.getWidth() / 2f;
+                shift = (scale[focused] - 1) * half + (scale[i] - 1) * half;
+                for (int k = focused + step; k != i; k += step) {
+                    shift += 2 * (scale[k] - 1) * half;
+                }
+                shift *= step;
+            }
+            v.animate().scaleX(scale[i]).scaleY(scale[i]).translationX(shift)
+                    .translationZ(i == focused ? px(12) : 0).setDuration(DOCK_MS)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start();
+        }
+    }
+
     private void keepVisible(View tile) {
         int margin = px(46);
         int x = scroll.getScrollX();
