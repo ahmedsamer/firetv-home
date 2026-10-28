@@ -54,6 +54,7 @@ import java.util.Map;
  */
 public class HomeActivity extends Activity {
     static final String AMAZON_HOME = "com.amazon.tv.launcher";
+    private static final String OOBE_RESOURCES = "com.amazon.tv.ooberesource";   // holds the Fire TV logo
     private static final List<String> PINNED = Arrays.asList(
             "com.amazon.firetv.youtube", "net.mbc.shahidTV", "com.watchit.vod", "org.clipbox.player",
             "com.sneig.livedrama", "org.videolan.vlc", "com.retroarch", "com.esaba.downloader");
@@ -377,7 +378,7 @@ public class HomeActivity extends Activity {
             buttons.addView(bar.view(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
         }
-        buttons.addView(iconButton(BarIcon.Kind.TV, "Fire TV", "AMAZON", "Amazon's home screen, for 10 minutes.",
+        buttons.addView(iconButton(fireTvLogo(), 3, "Fire TV", "AMAZON", "Amazon's home screen, for 10 minutes.",
                 v -> confirmAmazonHome()), new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.END | Gravity.CENTER_VERTICAL));
@@ -900,12 +901,17 @@ public class HomeActivity extends Activity {
      */
     private View iconButton(BarIcon.Kind kind, String label, String captionText, String aboutText,
             View.OnClickListener click) {
-        FrameLayout button = new FrameLayout(this);
         BarIcon icon = new BarIcon(kind);
         icon.set(false, 0f, 0);
+        return iconButton(icon, 7, label, captionText, aboutText, click);
+    }
+
+    private View iconButton(Drawable icon, int padDp, String label, String captionText, String aboutText,
+            View.OnClickListener click) {
+        FrameLayout button = new FrameLayout(this);
         ImageView image = new ImageView(this);
         image.setImageDrawable(icon);
-        int pad = px(7);
+        int pad = px(padDp);
         image.setPadding(pad, pad, pad, pad);
         button.addView(image, new FrameLayout.LayoutParams(px(ICON_BUTTON_DP), px(ICON_BUTTON_DP)));
         button.setContentDescription(label);
@@ -923,6 +929,25 @@ public class HomeActivity extends Activity {
         lp.setMargins(px(5), 0, px(5), 0);
         button.setLayoutParams(lp);
         return button;
+    }
+
+    /**
+     * The white "fire tv" logo from Fire OS's setup screens (read from the system at run time, not shipped with this
+     * app), or a drawn TV if it can't be found. The launcher's own icon is a profile picture, not the logo.
+     */
+    private Drawable fireTvLogo() {
+        try {
+            android.content.res.Resources oobe = getPackageManager().getResourcesForApplication(OOBE_RESOURCES);
+            int id = oobe.getIdentifier("oobe_firetv_logo", "drawable", OOBE_RESOURCES);
+            if (id != 0) {
+                return oobe.getDrawable(id, null);
+            }
+        } catch (PackageManager.NameNotFoundException | RuntimeException e) {
+            // fall back to the drawn TV
+        }
+        BarIcon tv = new BarIcon(BarIcon.Kind.TV);
+        tv.set(false, 0f, 0);
+        return tv;
     }
 
     /** The room buttons' glass: brighter, with a white ring, when focused. */

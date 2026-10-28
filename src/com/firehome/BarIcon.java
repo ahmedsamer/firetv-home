@@ -11,8 +11,8 @@ import android.graphics.drawable.Drawable;
 
 /**
  * Line icons for the Home Assistant bar, drawn in code: devices (a bulb, a ceiling pendant, a desk, a bed, a fan, a
- * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, a bus and an underground train for the departures, and a shopping bag, a gear and a TV for the
- * Appstore, Settings and Fire TV buttons. "On" (or open) draws
+ * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, a bus and an underground train for the departures, and an app grid with a plus and a gear for
+ * the Appstore and Settings buttons. "On" (or open) draws
  * them in the accent colour (the bar's warm yellow) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
@@ -167,14 +167,13 @@ class BarIcon extends Drawable {
                 break;
             }
             case STORE: {
-                // a shopping bag with its handle
-                canvas.drawRoundRect(new RectF(s * 0.18f, s * 0.38f, s * 0.82f, s * 0.9f), s * 0.07f, s * 0.07f, line);
-                Path handle = new Path();
-                handle.moveTo(s * 0.36f, s * 0.38f);
-                handle.lineTo(s * 0.36f, s * 0.3f);
-                handle.arcTo(new RectF(s * 0.36f, s * 0.14f, s * 0.64f, s * 0.42f), 180f, 180f);
-                handle.lineTo(s * 0.64f, s * 0.38f);
-                canvas.drawPath(handle, line);
+                // an app grid with a plus in place of the fourth app: "get more apps"
+                float r = s * 0.06f;
+                canvas.drawRoundRect(new RectF(s * 0.12f, s * 0.12f, s * 0.44f, s * 0.44f), r, r, line);
+                canvas.drawRoundRect(new RectF(s * 0.56f, s * 0.12f, s * 0.88f, s * 0.44f), r, r, line);
+                canvas.drawRoundRect(new RectF(s * 0.12f, s * 0.56f, s * 0.44f, s * 0.88f), r, r, line);
+                canvas.drawLine(s * 0.72f, s * 0.56f, s * 0.72f, s * 0.88f, line);
+                canvas.drawLine(s * 0.56f, s * 0.72f, s * 0.88f, s * 0.72f, line);
                 break;
             }
             case SETTINGS: {
