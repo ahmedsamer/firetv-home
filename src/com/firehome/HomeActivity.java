@@ -139,6 +139,11 @@ public class HomeActivity extends Activity {
     private TextView title;
     private TextView about;
     private String lastOpened;
+    private String rowApps;   // the APKs the row was built from
+    // Android only trims a window's GPU cache when the app leaves the screen, which a home screen hardly ever does, so
+    // the textures and offscreen buffers of every animation pile up (~35 MB). Let them go once things have settled
+    private static final long TRIM_DELAY_MS = 4000L;
+    private final Runnable trimGpu = HomeActivity::trimGpuCache;
     private View climate;
     private TextView salat;
     private Departures bus;
@@ -406,6 +411,7 @@ public class HomeActivity extends Activity {
         refreshWeather();
         // let this screen draw a frame first, so the swap from the overlay's picture can't be seen
         root.postDelayed(HomeWatcher::hideOverlay, 150);
+        main.postDelayed(trimGpu, TRIM_DELAY_MS);
     }
 
     @Override
@@ -413,12 +419,14 @@ public class HomeActivity extends Activity {
         super.onPause();
         main.removeCallbacks(refreshWeather);
         main.removeCallbacks(followSun);
+        main.removeCallbacks(trimGpu);
         // the overlay shows this picture the next time Amazon's home is started. PixelCopy takes the screen as
         // drawn; drawing the views into a bitmap would lose rounded clipping and shadows, and RGB_565 bands the sky
         View window = getWindow().getDecorView();
         if (window.getWidth() > 0 && window.getHeight() > 0) {
-            if (picture == null || picture.getWidth() != window.getWidth() || picture.getHeight() != window.getHeight()) {
-                picture = Bitmap.createBitmap(window.getWidth(), window.getHeight(), Bitmap.Config.ARGB_8888);
+            if (picture == null || picture.getWidth() != window.getWidth() * 2 / 3) {
+                picture = Bitmap.createBitmap(window.getWidth() * 2 / 3, window.getHeight() * 2 / 3,
+                        Bitmap.Config.ARGB_8888);
             }
             Bitmap shot = picture;
             PixelCopy.request(getWindow(), shot, result -> {
@@ -426,6 +434,16 @@ public class HomeActivity extends Activity {
                     HomeWatcher.snapshot(shot);
                 }
             }, window.getHandler());
+        }
+    }
+
+    /** Frees the renderer's cached GPU memory; what is still on screen is simply uploaded again on the next frame. */
+    private static void trimGpuCache() {
+        try {
+            Class.forName("android.view.ThreadedRenderer").getMethod("trimMemory", int.class)
+                    .invoke(null, android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN);   // COMPLETE drops the EGL context under a live window and crashes
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            // a hidden Android method: without it the cache just stays until Android trims it
         }
     }
 
@@ -597,24 +615,27 @@ public class HomeActivity extends Activity {
 
     /** Rebuilds the row and returns the tile to focus: the app opened last, else the first one. */
     private View fillRow() {
-        row.removeAllViews();
         Map<String, ResolveInfo> apps = installedApps();
-        View first = null;
-        View again = null;
-        for (Map.Entry<String, ResolveInfo> app : apps.entrySet()) {
-            View tile = tile(app.getKey(), app.getValue());
-            row.addView(tile);
-            if (first == null) {
-                first = tile;
-            }
-            if (app.getKey().equals(lastOpened)) {
-                again = tile;
+        // only rebuild when an app was installed, removed or updated (its APK path changes): every rebuild decodes all
+        // the icons again and uploads them to the GPU, and the old copies linger until a garbage collection
+        StringBuilder signature = new StringBuilder();
+        for (ResolveInfo ri : apps.values()) {
+            signature.append(ri.activityInfo.applicationInfo.sourceDir).append('|');
+        }
+        if (!signature.toString().equals(rowApps)) {
+            rowApps = signature.toString();
+            row.removeAllViews();
+            for (Map.Entry<String, ResolveInfo> app : apps.entrySet()) {
+                View tile = tile(app.getKey(), app.getValue());
+                tile.setTag(app.getKey());
+                row.addView(tile);
             }
         }
         if (apps.isEmpty()) {
             show(null, "No apps yet", "Open the Appstore below to get some.");
         }
-        return again != null ? again : first;
+        View again = lastOpened == null ? null : row.findViewWithTag(lastOpened);
+        return again != null ? again : row.getChildAt(0);
     }
 
     /** Apps with a TV (or, failing that, a phone) launcher entry that you installed: PINNED first, then by name. */
