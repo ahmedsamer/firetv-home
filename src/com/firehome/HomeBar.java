@@ -48,6 +48,7 @@ class HomeBar {
     // the same height as the Appstore and Settings pills next to it
     private static final int SIZE_DP = 33;
     private static final int ON_ICON = 0xFFFFC857;   // an "on" device's icon; the same yellow as a room's dot
+    private static final int HEAT_ICON = 0xFFFF9A7A;   // a heating thermostat: the climate corner's "warmer" coral
 
     private final Context context;
     private final float dp;
@@ -313,6 +314,7 @@ class HomeBar {
         panel.removeAllViews();
         if (r != null) {
             r.button.setNextFocusUpId(View.NO_ID);   // up goes back to the app row
+            paint(r);   // drop the open room's ring, or it stays lit after focus has moved on
             if (r.focused) {
                 describe(r);
             }
@@ -455,7 +457,7 @@ class HomeBar {
         boolean on = online && active(d);
         float level = d.position >= 0 ? d.position / 100f : (on ? 1f : 0f);
         // every button is glass; an "on" device shows it in its icon, drawn in warm yellow
-        d.icon.set(on, level, ON_ICON);
+        d.icon.set(on, level, d.kind == BarIcon.Kind.THERMOSTAT ? HEAT_ICON : ON_ICON);
         boolean usable = online && !d.state.equals("unavailable") && !d.state.equals("unknown");
         d.button.setBackground(glass(d.focused));
         d.button.setAlpha(usable ? 1f : 0.45f);
