@@ -32,6 +32,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -149,7 +150,11 @@ public class HomeActivity extends Activity {
     private static final int ADHAN_SP = 22;
     private static final int ADHAN_WIDTH_DP = 520;
     private static final int ADHAN_GOLD = 0xFFFFD27A;   // the name of Allah: a warm gold between the bar's yellow and AMBER   // fixed, so the line doesn't jump as the phrases change length
-    private static final long SALAT_BACK_MS = 900;   // the next prayer fading back in after the adhan
+    // between adhan phrases, as Apple Music's synced lyrics: the one just recited dims to this over the pause,
+    // then a quick dissolve (out, then in) when the next one starts
+    private static final float ADHAN_DIM = 0.35f;
+    private static final long DISSOLVE_OUT_MS = 150;
+    private static final long DISSOLVE_IN_MS = 250;
     private static final int DAY_TINT = 0xFF9EDDE2;   // the "27th" over the month: a pale cyan, a shade off the white
     private static final float CAP_HEIGHT = 0.71f;   // Roboto's capital height, as a share of the text size
     private static final float UNIT_SIZE = 0.7f;
@@ -713,9 +718,10 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * Shows the phrase being recited now, at once and in full while the voice lasts, then fades it out over the
-     * whole pause after it, so it is gone just as the next phrase begins; worked out from the clock alone, so a
-     * screen that comes back mid-adhan joins in at the right place.
+     * Shows the phrase being recited now, as Apple Music shows synced lyrics: in full while the voice lasts, dimming
+     * to ADHAN_DIM over the whole pause after it, then a quick dissolve into the next phrase as the voice starts
+     * again, so the line never goes blank mid-adhan. Worked out from the clock alone, so a screen that comes back
+     * mid-adhan joins in at the right place.
      */
     private void followAdhan() {
         main.removeCallbacks(adhanTick);
@@ -731,12 +737,7 @@ public class HomeActivity extends Activity {
             return;
         }
         if (index != adhanShown) {
-            adhan.animate().cancel();
-            salat.animate().cancel();
-            salat.setVisibility(View.GONE);
-            adhan.setText(tinted(Adhan.phrase(adhanFajr, index)));
-            adhan.setAlpha(1f);
-            adhan.setVisibility(View.VISIBLE);
+            dissolveTo(tinted(Adhan.phrase(adhanFajr, index)));
             adhanShown = index;
             adhanFading = false;
         }
@@ -748,7 +749,7 @@ public class HomeActivity extends Activity {
         }
         if (!adhanFading) {
             adhanFading = true;
-            adhan.animate().alpha(0f).setDuration(Math.max(1, faded - ms))
+            adhan.animate().alpha(ADHAN_DIM).setDuration(Math.max(1, faded - ms))
                     .setInterpolator(new AccelerateDecelerateInterpolator());
         }
         main.postDelayed(adhanTick, Math.max(1, faded - ms));
@@ -772,15 +773,33 @@ public class HomeActivity extends Activity {
         return line;
     }
 
-    /** Back to the next prayer once the recitation is over (the last phrase has already faded out). */
+    /** A quick dissolve into the new phrase: out from wherever the line is (the next prayer, or a dimmed phrase). */
+    private void dissolveTo(CharSequence text) {
+        TextView from = adhan.getVisibility() == View.VISIBLE ? adhan : salat;
+        adhan.animate().cancel();
+        salat.animate().cancel();
+        from.animate().alpha(0f).setDuration(DISSOLVE_OUT_MS).setInterpolator(new AccelerateInterpolator())
+                .withEndAction(() -> {
+                    salat.setVisibility(View.GONE);
+                    adhan.setText(text);
+                    adhan.setVisibility(View.VISIBLE);
+                    adhan.animate().alpha(1f).setDuration(DISSOLVE_IN_MS).setInterpolator(new DecelerateInterpolator());
+                });
+    }
+
+    /** Back to the next prayer once the recitation is over: the same dissolve, from the dimmed last phrase. */
     private void hideAdhan() {
         adhanShown = -1;
         adhanFading = false;
         adhan.animate().cancel();
-        adhan.setVisibility(View.GONE);
-        salat.setAlpha(0f);
-        salat.setVisibility(View.VISIBLE);
-        salat.animate().alpha(1f).setDuration(SALAT_BACK_MS).setInterpolator(new DecelerateInterpolator());
+        salat.animate().cancel();
+        adhan.animate().alpha(0f).setDuration(DISSOLVE_OUT_MS).setInterpolator(new AccelerateInterpolator())
+                .withEndAction(() -> {
+                    adhan.setVisibility(View.GONE);
+                    salat.setAlpha(0f);
+                    salat.setVisibility(View.VISIBLE);
+                    salat.animate().alpha(1f).setDuration(DISSOLVE_IN_MS).setInterpolator(new DecelerateInterpolator());
+                });
     }
 
     /** Today as "27th" (the day of the month with its English ordinal) and "Oct" (the month's short name). */

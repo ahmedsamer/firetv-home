@@ -7,7 +7,7 @@ package com.firehome;
  *
  * Each phrase runs from where the voice starts to where it stops: the pauses found with ffmpeg's silencedetect
  * (-30 dB, 0.4 s), matched to a Whisper (medium, Arabic, word timestamps) transcript of each file. The pause after a
- * phrase is when it fades out.
+ * phrase is when it dims.
  */
 final class Adhan {
     private static final String TAKBIR = "اللهُ أَكْبَرُ، اللهُ أَكْبَرُ";
@@ -27,7 +27,7 @@ final class Adhan {
             TAKBIR, TAHLIL};
     private static final long[] FAJR_FROM = {700, 5900, 20700, 35400, 51700, 67600, 81200, 94000, 105400, 116600,
             129000, 141100, 157500, 169900};
-    // the last takbir runs straight into the tahlil with no pause the detector finds; it fades in its last 0.6 s
+    // the last takbir runs straight into the tahlil with no pause the detector finds; it dims in its last 0.6 s
     private static final long[] FAJR_TO = {4700, 19100, 34500, 49800, 66500, 79600, 92900, 104300, 115400, 127800,
             139900, 156500, 169300, 181600};
     private static final String[] FAJR = {TAKBIR, TAKBIR, TAWHID, TAWHID, RISALA, RISALA, SALAH, SALAH, FALAH, FALAH,
@@ -36,7 +36,7 @@ final class Adhan {
     // the Echo starts the recording this long after the prayer time (Home Assistant's trigger, then Amazon fetching
     // it); checked by ear on 2026-10-30: in time
     static final long START_DELAY_MS = 2000;
-    // the last phrase fades out over this long once the voice ends
+    // the last phrase dims over this long once the voice ends, before the next prayer comes back
     private static final long LAST_FADE_MS = 2000;
 
     private Adhan() {
@@ -59,12 +59,12 @@ final class Adhan {
         return (fajr ? FAJR : AZAN)[index];
     }
 
-    /** Where the voice stops: the phrase starts fading out. */
+    /** Where the voice stops: the phrase starts dimming. */
     static long endsAt(boolean fajr, int index) {
         return (fajr ? FAJR_TO : AZAN_TO)[index];
     }
 
-    /** Where the fade is over: the next phrase's voice starts, or the last one has faded away. */
+    /** Where the dimming is over: the next phrase's voice starts, or the last one is done. */
     static long fadedAt(boolean fajr, int index) {
         long[] from = fajr ? FAJR_FROM : AZAN_FROM;
         return index + 1 < from.length ? from[index + 1] : endsAt(fajr, index) + LAST_FADE_MS;
