@@ -66,7 +66,7 @@ while true; do
             *"START u0"*"category.HOME"*"cmp=com.amazon.tv.launcher/"*"from uid 1000"*)
                 # NEW_TASK | REORDER_TO_FRONT, as HomeWatcher starts it
                 am start -n com.firehome/.HomeActivity -f 0x10020000 \
-                    --ez home_pressed true --ez instant true > /dev/null 2>&1
+                    --ez instant true > /dev/null 2>&1
                 ;;
         esac
     done

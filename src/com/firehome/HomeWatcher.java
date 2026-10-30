@@ -165,7 +165,7 @@ public class HomeWatcher extends Service {
         // when that answers in time
         main.postDelayed(() -> {
             if (!answered()) {
-                startActivity(new Intent(this, HomeActivity.class).putExtra(HomeActivity.EXTRA_HOME_PRESSED, true)
+                startActivity(new Intent(this, HomeActivity.class)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
             }
         }, INSTANT_WAIT_MS);

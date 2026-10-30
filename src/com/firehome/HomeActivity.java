@@ -24,6 +24,7 @@ import android.graphics.drawable.TransitionDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.view.PixelCopy;
@@ -123,19 +124,14 @@ public class HomeActivity extends Activity {
     private static final int LG_UP = 0x40;
     private static final int LG_DOWN = 0x41;
     private static final int LG_OK = 0x44;
-    static final String EXTRA_HOME_PRESSED = "home_pressed";   // set by HomeWatcher: Home on the remote, not an app closing
     static final String EXTRA_INSTANT = "instant";   // set by shell/homekey.sh, which answers Home within ~0.2 s
-    private static final String TV_AWAY = "away";   // the source the TV was switched to, in the "tv" preferences
+    private static final String ON_HDMI2 = "on_hdmi2";   // in the "tv" preferences: the button last switched to HDMI2
     private static final long LG_LIST_OPEN_MS = 1500;   // the Input List takes a moment to appear
     private static final long LG_KEY_GAP_MS = 400;
-    // The Input List is a grid of six: Cable, USB, AV1, AV2, Component, HDMI1 / HDMI2. It opens on the current
-    // input, and the Cube is on HDMI1 (the top right), so each source is the same presses from there.
-    private static final Map<String, int[]> LG_INPUTS = new LinkedHashMap<>();
-    static {
-        LG_INPUTS.put("HDMI 2 (PC)", new int[] {LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_DOWN});
-        LG_INPUTS.put("TV (Cable)", new int[] {LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT});
-        LG_INPUTS.put("USB", new int[] {LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT});
-    }
+    // The Input List is a grid of six: Cable, USB, AV1, AV2, Component, HDMI1 (the Cube) / HDMI2 (the PC) below
+    // Cable. It opens on the current input, so each way is always the same presses.
+    private static final int[] LG_TO_HDMI2 = {LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_DOWN};
+    private static final int[] LG_TO_HDMI1 = {LG_UP, LG_RIGHT, LG_RIGHT, LG_RIGHT, LG_RIGHT, LG_RIGHT};
 
     // tvOS gives the focused tile a soft neutral shadow; true brings back a glow in each app's colour
     private static final boolean COLOURED_GLOW = false;
@@ -181,6 +177,7 @@ public class HomeActivity extends Activity {
     private double indoor = Double.NaN;
     private TextView climateLine;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private long walkingUntil;   // the TV Input button ignores presses until its key presses are out
     private boolean stepAside;   // a Home press during the "Fire TV" button's time on Amazon's home
     private final Runnable refreshWeather = this::refreshWeather;
     private final Runnable followSun = this::followSun;
@@ -388,8 +385,8 @@ public class HomeActivity extends Activity {
         system.addView(iconButton(appstoreLogo(), 3, "Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
         system.addView(iconButton(BarIcon.Kind.MIRROR, "Screen Mirroring", "MIRROR",
                 "Show your phone or laptop on the TV.", v -> confirmMirroring()));
-        system.addView(iconButton(BarIcon.Kind.INPUT, "TV Input", "INPUT", "Switch the TV to HDMI 2, TV or USB.",
-                v -> chooseInput()));
+        system.addView(iconButton(BarIcon.Kind.INPUT, "TV Input", "INPUT",
+                "Switch the TV between the Fire TV (HDMI 1) and the PC (HDMI 2).", v -> toggleInput()));
         system.addView(iconButton(BarIcon.Kind.SETTINGS, "Settings", "SYSTEM", "Fire TV settings, network and apps.",
                 v -> openSettings()));
         bar = HomeBar.load(this, dp, this::show);
@@ -468,11 +465,7 @@ public class HomeActivity extends Activity {
             HomeWatcher.answeredInstantly();
             if (HomeWatcher.pausedFor() > SETTINGS_PAUSE_MS) {
                 stepAside = true;
-                return;
             }
-        }
-        if (intent.getBooleanExtra(EXTRA_HOME_PRESSED, false)) {
-            bringTvBack();
         }
     }
 
@@ -1115,41 +1108,20 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * The TV's inputs, switched with the LG remote's own keys from the Cube's IR blaster (the TV has no HDMI-CEC):
-     * INPUT opens its Input List on HDMI1, the arrows walk to the source, OK picks it.
+     * Switches the TV between HDMI1 (this Cube) and HDMI2 (the PC) at once, no dialog, with the LG remote's own keys
+     * from the Cube's IR blaster (the TV has no HDMI-CEC). The TV can't say which input it is on, so this goes by
+     * what it last did here: with the PC on screen the remote still reaches the Cube and the focus stays on this
+     * button, so Select again brings the Cube back. If the LG remote switched back in between, one press walks
+     * "back" to HDMI1 where the TV already is, and the next goes to HDMI2 again.
      */
-    private void chooseInput() {
-        String[] names = LG_INPUTS.keySet().toArray(new String[0]);
-        Runnable[] actions = new Runnable[names.length];
-        for (int i = 0; i < names.length; i++) {
-            String name = names[i];
-            actions[i] = () -> {
-                getSharedPreferences("tv", MODE_PRIVATE).edit().putString(TV_AWAY, name).apply();
-                walkInputList(LG_INPUTS.get(name));
-            };
+    private void toggleInput() {
+        if (SystemClock.elapsedRealtime() < walkingUntil) {
+            return;   // still walking the list; a second press would scramble it
         }
-        alert("TV Input", "Switch the TV to another source. Press Home on this remote to come back.", names,
-                actions, 0);
-    }
-
-    /**
-     * Home on the Fire TV remote after the input button switched the TV away: walks the Input List back to HDMI1,
-     * the same presses in reverse. Only a switch made here is known; if the LG remote brought the TV back, this
-     * flashes the list once and picks HDMI1 again.
-     */
-    private void bringTvBack() {
         android.content.SharedPreferences tv = getSharedPreferences("tv", MODE_PRIVATE);
-        int[] path = LG_INPUTS.get(tv.getString(TV_AWAY, ""));
-        if (path == null) {
-            return;
-        }
-        tv.edit().remove(TV_AWAY).apply();
-        int[] back = new int[path.length];
-        for (int i = 0; i < path.length; i++) {
-            int key = path[path.length - 1 - i];
-            back[i] = key == LG_LEFT ? LG_RIGHT : key == LG_RIGHT ? LG_LEFT : key == LG_DOWN ? LG_UP : LG_DOWN;
-        }
-        walkInputList(back);
+        boolean toHdmi2 = !tv.getBoolean(ON_HDMI2, false);
+        tv.edit().putBoolean(ON_HDMI2, toHdmi2).apply();
+        walkInputList(toHdmi2 ? LG_TO_HDMI2 : LG_TO_HDMI1);
     }
 
     /** INPUT, then `path` through the Input List from wherever it opens, then OK. */
@@ -1161,6 +1133,7 @@ public class HomeActivity extends Activity {
             at += LG_KEY_GAP_MS;
         }
         main.postDelayed(() -> sendLg(LG_OK), at);
+        walkingUntil = SystemClock.elapsedRealtime() + at + LG_KEY_GAP_MS;
     }
 
     /**
