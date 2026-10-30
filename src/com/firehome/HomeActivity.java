@@ -164,6 +164,7 @@ public class HomeActivity extends Activity {
     private static final int SALAT_SOON = 0xFF8EE68A;
     private static final int SALAT_NEAR = 0xFFFFC857;
     private static final int SALAT_NOW = 0xFFFF6B6B;
+    private static final long SALAT_SECONDS_MS = 180_000L;   // from 3 minutes before, the countdown shows seconds
     private static final int CLIMATE_SP = 37;   // the indoor temperature; the rest of the corner scales with it
     private static final int ICON_BUTTON_DP = 33;   // the Appstore, Settings and Fire TV buttons: as big as a room's
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
@@ -188,6 +189,7 @@ public class HomeActivity extends Activity {
     private View climate;
     private TextView salat;
     private String salatName = "";
+    private final Runnable salatSecond = this::drawSalat;
     private long salatTs;   // epoch seconds of the next prayer, 0 when unknown
     private TextView adhan;   // in the next prayer's place while the adhan is being recited
     private boolean adhanFajr;
@@ -281,6 +283,7 @@ public class HomeActivity extends Activity {
         // under the clock, centred: the next prayer from Home Assistant (Mawaqit), "Fajr 4:59 AM"; empty until known
         salat = new TextView(this);
         style(salat, 17, 0xD9FFFFFF, "sans-serif-medium");
+        salat.setFontFeatureSettings("tnum");   // digits all one width, so the seconds countdown doesn't shift
         salat.setShadowLayer(px(8), 0, px(1), 0x66000000);
         LinearLayout clockColumn = new LinearLayout(this);
         clockColumn.setOrientation(LinearLayout.VERTICAL);
@@ -688,11 +691,22 @@ public class HomeActivity extends Activity {
         line.setSpan(new android.text.style.ForegroundColorSpan(DAY_TINT), 0, line.length(),
                 android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         line.append("  ").append(time);
-        // whole minutes left, rounded up so it reads "in 1m" up to the minute itself
-        long left = (salatTs * 1000 - System.currentTimeMillis() + 59_999L) / 60_000L;
+        main.removeCallbacks(salatSecond);
+        // whole minutes left, rounded up so it reads "in 1m" up to the minute itself; in the last 3 minutes
+        // minutes and seconds, "in 2:59", counting down every second (as iOS/tvOS timers end)
+        long msLeft = salatTs * 1000 - System.currentTimeMillis();
+        long left = (msLeft + 59_999L) / 60_000L;
         if (left > 0 && left <= 30) {
             int start = line.length();
-            line.append("  in ").append(left + "m");
+            if (msLeft <= SALAT_SECONDS_MS) {
+                long secs = (msLeft + 999) / 1000;
+                line.append("  in ").append(secs / 60 + ":" + String.format(java.util.Locale.ENGLISH, "%02d", secs % 60));
+                main.postDelayed(salatSecond, msLeft - (secs - 1) * 1000);   // as the next second starts
+            } else {
+                line.append("  in ").append(left + "m");
+                // the clock's minute tick needn't fall on the 3-minute mark: switch to seconds exactly there
+                main.postDelayed(salatSecond, msLeft - SALAT_SECONDS_MS);
+            }
             line.setSpan(new android.text.style.ForegroundColorSpan(
                     left > 20 ? SALAT_SOON : left > 10 ? SALAT_NEAR : SALAT_NOW), start,
                     line.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
