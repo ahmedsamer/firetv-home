@@ -498,18 +498,27 @@ public class HomeActivity extends Activity {
         main.removeCallbacks(trimGpu);
         // the overlay shows this picture the next time Amazon's home is started. PixelCopy takes the screen as
         // drawn; drawing the views into a bitmap would lose rounded clipping and shadows, and RGB_565 bands the sky
+        // Asleep there is nothing to copy: the display is off and the window has lost its surface (the Cube sleeps
+        // when the TV goes off, and Fire OS then starts Amazon's home, pausing this). PixelCopy throws on that, which
+        // took the whole app down; the last good picture stays for the overlay.
         View window = getWindow().getDecorView();
-        if (window.getWidth() > 0 && window.getHeight() > 0) {
+        android.os.PowerManager power = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+        boolean awake = power == null || power.isInteractive();
+        if (awake && window.isAttachedToWindow() && window.getWidth() > 0 && window.getHeight() > 0) {
             if (picture == null || picture.getWidth() != window.getWidth() * 2 / 3) {
                 picture = Bitmap.createBitmap(window.getWidth() * 2 / 3, window.getHeight() * 2 / 3,
                         Bitmap.Config.ARGB_8888);
             }
             Bitmap shot = picture;
-            PixelCopy.request(getWindow(), shot, result -> {
-                if (result == PixelCopy.SUCCESS) {
-                    HomeWatcher.snapshot(shot);
-                }
-            }, window.getHandler());
+            try {
+                PixelCopy.request(getWindow(), shot, result -> {
+                    if (result == PixelCopy.SUCCESS) {
+                        HomeWatcher.snapshot(shot);
+                    }
+                }, window.getHandler());
+            } catch (IllegalArgumentException e) {
+                // "Window doesn't have a backing surface!": gone between the check and the copy; keep the old picture
+            }
         }
     }
 
