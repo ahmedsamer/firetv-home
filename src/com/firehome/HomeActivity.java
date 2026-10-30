@@ -144,8 +144,11 @@ public class HomeActivity extends Activity {
     private static final int AMBER = 0xFFFFB13B;
     // the clock sits top centre between the climate and the departures
     private static final int CLOCK_SP = 46;
-    private static final int ADHAN_SP = 30;   // the adhan's words under the clock
-    private static final int ADHAN_WIDTH_DP = 640;   // fixed, so the line doesn't jump as the phrases change length
+    // the adhan's words under the clock: a step above the next-prayer line they replace (17 sp), well under the
+    // clock; Amiri draws Arabic small for its size, so this reads about as tall as the climate's second line
+    private static final int ADHAN_SP = 22;
+    private static final int ADHAN_WIDTH_DP = 520;
+    private static final int ADHAN_GOLD = 0xFFFFD27A;   // the name of Allah: a warm gold between the bar's yellow and AMBER   // fixed, so the line doesn't jump as the phrases change length
     private static final long PHRASE_OUT_MS = 500;
     private static final long PHRASE_IN_MS = 900;
     private static final int PHRASE_DRIFT_DP = 6;
@@ -287,7 +290,7 @@ public class HomeActivity extends Activity {
         adhan = new TextView(this);
         style(adhan, ADHAN_SP, 0xFFFFFFFF, "sans-serif");
         adhan.setTypeface(Typeface.createFromAsset(getAssets(), "fonts/amiri-bold-adhan.ttf"));
-        adhan.setShadowLayer(px(12), 0, px(2), 0x80000000);
+        adhan.setShadowLayer(px(8), 0, px(1), 0x66000000);   // as the next-prayer line
         adhan.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         adhan.setTextDirection(View.TEXT_DIRECTION_RTL);
         adhan.setGravity(Gravity.CENTER);
@@ -752,11 +755,29 @@ public class HomeActivity extends Activity {
     }
 
     private void phraseIn(String text) {
-        adhan.setText(text);
+        adhan.setText(tinted(text));
         adhan.setAlpha(0f);
         adhan.setTranslationY(px(PHRASE_DRIFT_DP));
         adhan.animate().alpha(1f).translationY(0f).setDuration(PHRASE_IN_MS)
                 .setInterpolator(new DecelerateInterpolator(1.5f));
+    }
+
+    /**
+     * The phrase with the name of Allah in gold and the Prophet's name in the day's pale cyan, as the next-prayer
+     * line tints its name. Whole words only: a colour change inside a word would break Arabic's joined letters.
+     */
+    private static CharSequence tinted(String phrase) {
+        android.text.SpannableString line = new android.text.SpannableString(phrase);
+        int start = 0;
+        for (String word : phrase.split(" ")) {
+            int colour = word.contains("الله") ? ADHAN_GOLD : word.contains("مُحَمَّد") ? DAY_TINT : 0;
+            if (colour != 0) {
+                line.setSpan(new android.text.style.ForegroundColorSpan(colour), start, start + word.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+            start += word.length() + 1;
+        }
+        return line;
     }
 
     /** Back to the next prayer once the recitation is over. */
