@@ -170,6 +170,8 @@ public class HomeActivity extends Activity {
     private final Runnable trimGpu = HomeActivity::trimGpuCache;
     private View climate;
     private TextView salat;
+    private String salatName = "";
+    private long salatTs;   // epoch seconds of the next prayer, 0 when unknown
     private Departures bus;
     private Departures metro;
     private TextView climateTemp;
@@ -237,6 +239,9 @@ public class HomeActivity extends Activity {
                 if (bus != null) {
                     bus.tick();   // the departures count down with the clock
                     metro.tick();
+                }
+                if (salat != null) {
+                    drawSalat();   // and so does the time left to the next prayer
                 }
             }
         });
@@ -619,30 +624,43 @@ public class HomeActivity extends Activity {
         }
     }
 
-    /**
-     * Home Assistant's {"name": "fajr", "ts": epoch seconds} as "Fajr 4:59 AM", the name in the day's pale cyan;
-     * anything unreadable leaves the line as it was.
-     */
+    /** Home Assistant's {"name": "fajr", "ts": epoch seconds}; anything unreadable leaves the line as it was. */
     private void showSalat(String payload) {
-        String name;
-        long ts;
         try {
             org.json.JSONObject json = new org.json.JSONObject(payload);
-            name = json.getString("name");
-            ts = json.getLong("ts");
+            salatName = json.getString("name");
+            salatTs = json.getLong("ts");
         } catch (org.json.JSONException e) {
             return;
         }
-        if (name.isEmpty() || ts <= 0) {
+        drawSalat();
+    }
+
+    /**
+     * The next prayer as "Fajr  4:59 AM  in 1h 23m": the name in the day's pale cyan, the time left dimmer and
+     * amber in the last 10 minutes, counting down with the clock.
+     */
+    private void drawSalat() {
+        if (salatName.isEmpty() || salatTs <= 0) {
             salat.setText("");
             return;
         }
-        String time = new java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(new java.util.Date(ts * 1000));
+        String time = new java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(new java.util.Date(salatTs * 1000));
         android.text.SpannableStringBuilder line = new android.text.SpannableStringBuilder();
-        line.append(Character.toUpperCase(name.charAt(0)) + name.substring(1));
+        line.append(Character.toUpperCase(salatName.charAt(0)) + salatName.substring(1));
         line.setSpan(new android.text.style.ForegroundColorSpan(DAY_TINT), 0, line.length(),
                 android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         line.append("  ").append(time);
+        // whole minutes left, rounded up so it reads "in 1m" up to the minute itself
+        long left = (salatTs * 1000 - System.currentTimeMillis() + 59_999L) / 60_000L;
+        if (left > 0) {
+            int start = line.length();
+            line.append("  in ").append(left >= 60 ? (left / 60) + "h " + (left % 60) + "m" : left + "m");
+            line.setSpan(new android.text.style.ForegroundColorSpan(left <= 10 ? AMBER : 0x99FFFFFF), start,
+                    line.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            line.setSpan(new android.text.style.RelativeSizeSpan(0.85f), start, line.length(),
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         salat.setText(line);
     }
 
