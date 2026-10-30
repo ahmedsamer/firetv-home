@@ -27,11 +27,19 @@ import java.io.InputStreamReader;
  * then. Windows aren't held back: an overlay with HomeActivity's last picture of itself covers Amazon's home at
  * once and goes when HomeActivity is back (or after OVERLAY_MAX_MS, so it can never trap the screen).
  * The overlay needs SYSTEM_ALERT_WINDOW, granted over ADB: appops set com.firehome SYSTEM_ALERT_WINDOW allow.
+ *
+ * shell/homekey.sh, running as the adb shell user (exempt from the hold), answers remote Home presses in ~0.2 s
+ * when it runs; this service then stands back and stays the fallback for when it doesn't.
  */
 public class HomeWatcher extends Service {
     private static long pausedUntil;
     private static long lastLaunch;
+    private static volatile long instantAt = -1;
     private static final long OVERLAY_MAX_MS = 8000L;
+    // shell/homekey.sh starts HomeActivity ~0.2 s after a Home press; the log line can come before or after that,
+    // so wait this long before deciding the press is ours to answer
+    private static final long INSTANT_WAIT_MS = 600L;
+    private static final long INSTANT_COVERS_MS = 3000L;   // a press homekey.sh answered, as seen from the log
     private static HomeWatcher running;
     private static Bitmap snapshot;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -42,6 +50,21 @@ public class HomeWatcher extends Service {
     /** Leave Amazon's home alone for a while, for the "Fire TV home" button. */
     static void pause(long millis) {
         pausedUntil = SystemClock.elapsedRealtime() + millis;
+    }
+
+    /** How much longer Amazon's home is left alone, in ms (0 when it isn't). */
+    static long pausedFor() {
+        return Math.max(0, pausedUntil - SystemClock.elapsedRealtime());
+    }
+
+    /** shell/homekey.sh has just put HomeActivity up for a Home press: this one needs no overlay or start. */
+    static void answeredInstantly() {
+        instantAt = SystemClock.elapsedRealtime();
+        hideOverlay();
+    }
+
+    private static boolean answered() {
+        return instantAt >= 0 && SystemClock.elapsedRealtime() - instantAt < INSTANT_COVERS_MS;
     }
 
     /** HomeActivity's picture of itself as it was left, for the overlay. */
@@ -134,13 +157,22 @@ public class HomeWatcher extends Service {
             return;
         }
         lastLaunch = now;
+        if (answered()) {
+            return;
+        }
         main.post(this::showOverlay);
-        startActivity(new Intent(this, HomeActivity.class).putExtra(HomeActivity.EXTRA_HOME_PRESSED, true)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+        // a start from here is held for 5 s and then lands anyway, resetting the focus; leave it to homekey.sh
+        // when that answers in time
+        main.postDelayed(() -> {
+            if (!answered()) {
+                startActivity(new Intent(this, HomeActivity.class).putExtra(HomeActivity.EXTRA_HOME_PRESSED, true)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+            }
+        }, INSTANT_WAIT_MS);
     }
 
     private void showOverlay() {
-        if (overlay != null || !Settings.canDrawOverlays(this)) {
+        if (overlay != null || answered() || !Settings.canDrawOverlays(this)) {
             return;
         }
         ImageView cover = new ImageView(this);

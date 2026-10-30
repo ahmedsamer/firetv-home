@@ -124,6 +124,7 @@ public class HomeActivity extends Activity {
     private static final int LG_DOWN = 0x41;
     private static final int LG_OK = 0x44;
     static final String EXTRA_HOME_PRESSED = "home_pressed";   // set by HomeWatcher: Home on the remote, not an app closing
+    static final String EXTRA_INSTANT = "instant";   // set by shell/homekey.sh, which answers Home within ~0.2 s
     private static final String TV_AWAY = "away";   // the source the TV was switched to, in the "tv" preferences
     private static final long LG_LIST_OPEN_MS = 1500;   // the Input List takes a moment to appear
     private static final long LG_KEY_GAP_MS = 400;
@@ -180,6 +181,7 @@ public class HomeActivity extends Activity {
     private double indoor = Double.NaN;
     private TextView climateLine;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private boolean stepAside;   // a Home press during the "Fire TV" button's time on Amazon's home
     private final Runnable refreshWeather = this::refreshWeather;
     private final Runnable followSun = this::followSun;
 
@@ -447,11 +449,28 @@ public class HomeActivity extends Activity {
         root.addView(bottom, bottomLp);
 
         setContentView(root);
+        homePressed(getIntent());   // a Home press that found this activity gone, after a restart
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        homePressed(intent);
+    }
+
+    /**
+     * A Home press, from HomeWatcher or (EXTRA_INSTANT) from shell/homekey.sh. homekey.sh doesn't know about the
+     * "Fire TV" button's 10 minutes on Amazon's home, so a press in that time steps aside to Amazon's home, which
+     * the press started underneath. (A short pause, the one for opening Settings, isn't that choice.)
+     */
+    private void homePressed(Intent intent) {
+        if (intent.getBooleanExtra(EXTRA_INSTANT, false)) {
+            HomeWatcher.answeredInstantly();
+            if (HomeWatcher.pausedFor() > SETTINGS_PAUSE_MS) {
+                stepAside = true;
+                return;
+            }
+        }
         if (intent.getBooleanExtra(EXTRA_HOME_PRESSED, false)) {
             bringTvBack();
         }
@@ -460,6 +479,11 @@ public class HomeActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (stepAside) {
+            stepAside = false;
+            moveTaskToBack(true);
+            return;
+        }
         HomeWatcher.pause(0);   // back from Settings or Amazon's home: Home brings this screen up again
         View focus = fillRow();   // apps may have been installed or removed while we were away
         if (focus != null) {
