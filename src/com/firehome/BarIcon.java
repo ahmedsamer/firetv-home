@@ -12,12 +12,14 @@ import android.graphics.drawable.Drawable;
 /**
  * Line icons for the Home Assistant bar, drawn in code: devices (a bulb, a ceiling pendant, a desk, a bed, a fan, a
  * blind, a curtain) and rooms (a sofa, a cooking pot, a bathtub, a door), a house for the indoor climate, a bus and an underground train for the departures, an app grid with a plus and a gear for
- * the Appstore and Settings buttons, and a thermometer for the radiator thermostats. "On" (or open) draws
+ * the Appstore and Settings buttons, a thermometer for the radiator thermostats, and two screens (mirroring) and a
+ * screen with an arrow coming in (the TV's input) for the system buttons. "On" (or open) draws
  * them in the accent colour (the bar's warm yellow) with a fill; off draws them as white outlines. A blind or curtain shows how far open it
  * is through `level` (0 closed .. 1 open).
  */
 class BarIcon extends Drawable {
-    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME, BUS, METRO, STORE, SETTINGS, TV, THERMOSTAT }
+    enum Kind { LIGHT, CEILING, DESK, BED, FAN, BLIND, CURTAIN, SOFA, KITCHEN, BATH, DOOR, HOME, BUS, METRO, STORE, SETTINGS, TV, THERMOSTAT,
+            MIRROR, INPUT }
 
     private final Kind kind;
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -197,6 +199,49 @@ class BarIcon extends Drawable {
                 canvas.drawRoundRect(new RectF(s * 0.08f, s * 0.16f, s * 0.92f, s * 0.7f), s * 0.07f, s * 0.07f, line);
                 canvas.drawLine(s * 0.5f, s * 0.7f, s * 0.5f, s * 0.84f, line);
                 canvas.drawLine(s * 0.3f, s * 0.86f, s * 0.7f, s * 0.86f, line);
+                break;
+            }
+            case MIRROR: {
+                // Apple's screen mirroring sign: two overlapping screens, the front one solid
+                float r = s * 0.06f;
+                Path back = new Path();
+                back.moveTo(s * 0.3f, s * 0.26f);
+                back.lineTo(s * 0.3f, s * 0.2f);
+                back.quadTo(s * 0.3f, s * 0.14f, s * 0.36f, s * 0.14f);
+                back.lineTo(s * 0.86f, s * 0.14f);
+                back.quadTo(s * 0.92f, s * 0.14f, s * 0.92f, s * 0.2f);
+                back.lineTo(s * 0.92f, s * 0.56f);
+                back.quadTo(s * 0.92f, s * 0.62f, s * 0.86f, s * 0.62f);
+                back.lineTo(s * 0.78f, s * 0.62f);
+                canvas.drawPath(back, line);
+                RectF front = new RectF(s * 0.08f, s * 0.38f, s * 0.66f, s * 0.86f);
+                fill.setAlpha(110);
+                canvas.drawRoundRect(front, r, r, fill);
+                canvas.drawRoundRect(front, r, r, line);
+                break;
+            }
+            case INPUT: {
+                // a screen with an arrow coming in from the left: "switch to another source"
+                float r = s * 0.07f;
+                Path screen = new Path();
+                screen.moveTo(s * 0.3f, s * 0.3f);
+                screen.lineTo(s * 0.3f, s * 0.24f);
+                screen.quadTo(s * 0.3f, s * 0.16f, s * 0.38f, s * 0.16f);
+                screen.lineTo(s * 0.84f, s * 0.16f);
+                screen.quadTo(s * 0.92f, s * 0.16f, s * 0.92f, s * 0.24f);
+                screen.lineTo(s * 0.92f, s * 0.68f);
+                screen.quadTo(s * 0.92f, s * 0.76f, s * 0.84f, s * 0.76f);
+                screen.lineTo(s * 0.38f, s * 0.76f);
+                screen.quadTo(s * 0.3f, s * 0.76f, s * 0.3f, s * 0.68f);
+                screen.lineTo(s * 0.3f, s * 0.62f);
+                canvas.drawPath(screen, line);
+                canvas.drawLine(s * 0.08f, s * 0.46f, s * 0.62f, s * 0.46f, line);
+                Path head = new Path();
+                head.moveTo(s * 0.48f, s * 0.32f);
+                head.lineTo(s * 0.62f, s * 0.46f);
+                head.lineTo(s * 0.48f, s * 0.6f);
+                canvas.drawPath(head, line);
+                canvas.drawLine(s * 0.42f, s * 0.88f, s * 0.8f, s * 0.88f, line);
                 break;
             }
             case THERMOSTAT: {

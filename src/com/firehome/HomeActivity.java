@@ -111,6 +111,30 @@ public class HomeActivity extends Activity {
     private static final long AMAZON_PAUSE_MS = 10 * 60 * 1000L;
     // Fire OS opens Settings by starting Amazon's home with a "show Settings" extra; long enough for that to land
     private static final long SETTINGS_PAUSE_MS = 4000L;
+    private static final String MIRRORING = "com.amazon.cast.sink";   // Fire OS's "Display Mirroring" app
+    private static final String MIRRORING_SCREEN = "com.amazon.cast.sink.DisplayMirroringSinkActivity";
+    // the LG 43LH500T's remote (NEC address 0x04). It ignores LG's discrete input codes (HDMI 1 0xCE and so on), so
+    // the input button works its Input List like a person would: INPUT, arrows, OK
+    private static final int LG_ADDRESS = 0x04;
+    private static final float IR_UNIT_US = 10f;   // Fire OS's IR driver: one count = 10 µs (see sendLg)
+    private static final int LG_INPUT = 0x0B;
+    private static final int LG_LEFT = 0x07;
+    private static final int LG_RIGHT = 0x06;
+    private static final int LG_UP = 0x40;
+    private static final int LG_DOWN = 0x41;
+    private static final int LG_OK = 0x44;
+    static final String EXTRA_HOME_PRESSED = "home_pressed";   // set by HomeWatcher: Home on the remote, not an app closing
+    private static final String TV_AWAY = "away";   // the source the TV was switched to, in the "tv" preferences
+    private static final long LG_LIST_OPEN_MS = 1500;   // the Input List takes a moment to appear
+    private static final long LG_KEY_GAP_MS = 400;
+    // The Input List is a grid of six: Cable, USB, AV1, AV2, Component, HDMI1 / HDMI2. It opens on the current
+    // input, and the Cube is on HDMI1 (the top right), so each source is the same presses from there.
+    private static final Map<String, int[]> LG_INPUTS = new LinkedHashMap<>();
+    static {
+        LG_INPUTS.put("HDMI 2 (PC)", new int[] {LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_DOWN});
+        LG_INPUTS.put("TV (Cable)", new int[] {LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT});
+        LG_INPUTS.put("USB", new int[] {LG_LEFT, LG_LEFT, LG_LEFT, LG_LEFT});
+    }
 
     // tvOS gives the focused tile a soft neutral shadow; true brings back a glow in each app's colour
     private static final boolean COLOURED_GLOW = false;
@@ -349,7 +373,8 @@ public class HomeActivity extends Activity {
         scrollLp.setMargins(0, px(6), 0, 0);
         bottom.addView(scroll, scrollLp);
 
-        // the Home Assistant bar (if configured), then Fire TV (the way out to Amazon's home), Appstore and Settings,
+        // the Home Assistant bar (if configured), then Fire TV (the way out to Amazon's home), Appstore, Screen
+        // Mirroring, TV Input and Settings,
         // all centred
         FrameLayout buttons = new FrameLayout(this);
         buttons.setClipChildren(false);
@@ -359,6 +384,10 @@ public class HomeActivity extends Activity {
         system.addView(iconButton(fireTvLogo(), 3, "Fire TV", "AMAZON", "Amazon's home screen, for 10 minutes.",
                 v -> confirmAmazonHome()));
         system.addView(iconButton(appstoreLogo(), 3, "Appstore", "STORE", "Find and install apps.", v -> openAppstore()));
+        system.addView(iconButton(BarIcon.Kind.MIRROR, "Screen Mirroring", "MIRROR",
+                "Show your phone or laptop on the TV.", v -> confirmMirroring()));
+        system.addView(iconButton(BarIcon.Kind.INPUT, "TV Input", "INPUT", "Switch the TV to HDMI 2, TV or USB.",
+                v -> chooseInput()));
         system.addView(iconButton(BarIcon.Kind.SETTINGS, "Settings", "SYSTEM", "Fire TV settings, network and apps.",
                 v -> openSettings()));
         bar = HomeBar.load(this, dp, this::show);
@@ -418,6 +447,14 @@ public class HomeActivity extends Activity {
         root.addView(bottom, bottomLp);
 
         setContentView(root);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent.getBooleanExtra(EXTRA_HOME_PRESSED, false)) {
+            bringTvBack();
+        }
     }
 
     @Override
@@ -1033,11 +1070,116 @@ public class HomeActivity extends Activity {
         return bg;
     }
 
-    /**
-     * Asks before handing the screen to Amazon's home, which then stays for 10 minutes. Laid out like a tvOS alert:
-     * centred title and message, full-width buttons stacked with Cancel last; Cancel has the focus.
-     */
+    /** Asks before handing the screen to Amazon's home, which then stays for 10 minutes. */
     private void confirmAmazonHome() {
+        alert("Open Amazon's home?", "For the next 10 minutes, Home goes to Amazon's home instead of this screen.",
+                new String[] {"Open Amazon's Home"}, new Runnable[] {this::openAmazonHome}, -1);
+    }
+
+    /**
+     * Fire OS's own mirroring screen. While it waits for a phone it takes the Wi-Fi off the network, so nothing
+     * (this app's bar, Home Assistant, ADB) can close it: only Back on the remote does. Says so first.
+     */
+    private void confirmMirroring() {
+        alert("Screen Mirroring", "Start mirroring from your phone or laptop. Press Back on the remote to stop. "
+                + "While mirroring, the TV is off the network and Home Assistant can't reach it.",
+                new String[] {"Start Mirroring"}, new Runnable[] {this::openMirroring}, -1);
+    }
+
+    private void openMirroring() {
+        launch(new Intent().setClassName(MIRRORING, MIRRORING_SCREEN), "Couldn't open screen mirroring.");
+    }
+
+    /**
+     * The TV's inputs, switched with the LG remote's own keys from the Cube's IR blaster (the TV has no HDMI-CEC):
+     * INPUT opens its Input List on HDMI1, the arrows walk to the source, OK picks it.
+     */
+    private void chooseInput() {
+        String[] names = LG_INPUTS.keySet().toArray(new String[0]);
+        Runnable[] actions = new Runnable[names.length];
+        for (int i = 0; i < names.length; i++) {
+            String name = names[i];
+            actions[i] = () -> {
+                getSharedPreferences("tv", MODE_PRIVATE).edit().putString(TV_AWAY, name).apply();
+                walkInputList(LG_INPUTS.get(name));
+            };
+        }
+        alert("TV Input", "Switch the TV to another source. Press Home on this remote to come back.", names,
+                actions, 0);
+    }
+
+    /**
+     * Home on the Fire TV remote after the input button switched the TV away: walks the Input List back to HDMI1,
+     * the same presses in reverse. Only a switch made here is known; if the LG remote brought the TV back, this
+     * flashes the list once and picks HDMI1 again.
+     */
+    private void bringTvBack() {
+        android.content.SharedPreferences tv = getSharedPreferences("tv", MODE_PRIVATE);
+        int[] path = LG_INPUTS.get(tv.getString(TV_AWAY, ""));
+        if (path == null) {
+            return;
+        }
+        tv.edit().remove(TV_AWAY).apply();
+        int[] back = new int[path.length];
+        for (int i = 0; i < path.length; i++) {
+            int key = path[path.length - 1 - i];
+            back[i] = key == LG_LEFT ? LG_RIGHT : key == LG_RIGHT ? LG_LEFT : key == LG_DOWN ? LG_UP : LG_DOWN;
+        }
+        walkInputList(back);
+    }
+
+    /** INPUT, then `path` through the Input List from wherever it opens, then OK. */
+    private void walkInputList(int[] path) {
+        sendLg(LG_INPUT);
+        long at = LG_LIST_OPEN_MS;
+        for (int key : path) {
+            main.postDelayed(() -> sendLg(key), at);
+            at += LG_KEY_GAP_MS;
+        }
+        main.postDelayed(() -> sendLg(LG_OK), at);
+    }
+
+    /**
+     * One NEC frame (LG's protocol) for `command` at LG's address: a 9 ms burst, a 4.5 ms gap, then the address,
+     * its inverse, the command and its inverse, least significant bit first, and a closing burst.
+     */
+    private void sendLg(int command) {
+        android.hardware.ConsumerIrManager ir =
+                (android.hardware.ConsumerIrManager) getSystemService(CONSUMER_IR_SERVICE);
+        if (ir == null || !ir.hasIrEmitter()) {
+            Toast.makeText(this, "This Fire TV has no IR blaster.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        int[] bytes = {LG_ADDRESS, ~LG_ADDRESS & 0xFF, command, ~command & 0xFF};
+        int[] pattern = new int[2 + 32 * 2 + 2];
+        int n = 0;
+        pattern[n++] = 9000;
+        pattern[n++] = 4500;
+        for (int b : bytes) {
+            for (int bit = 0; bit < 8; bit++) {
+                pattern[n++] = 560;
+                pattern[n++] = ((b >> bit) & 1) == 1 ? 1690 : 560;
+            }
+        }
+        pattern[n++] = 560;
+        pattern[n] = 40000;   // the quiet that ends a frame, as Amazon's own TV control sends it
+        // Fire OS's IR driver counts in tens of microseconds, not the microseconds Android documents: Amazon's own
+        // NEC frames go out as 894, 444, 52, ... (seen in its log). Microseconds made every pulse ten times too long.
+        for (int i = 0; i < pattern.length; i++) {
+            pattern[i] = Math.round(pattern[i] / IR_UNIT_US);
+        }
+        try {
+            ir.transmit(38000, pattern);
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "Couldn't send to the TV.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * A tvOS alert: centred title and message, full-width rounded buttons stacked with Cancel last. `focus` is the
+     * button that starts focused, -1 for Cancel.
+     */
+    private void alert(String title, String message, String[] labels, Runnable[] actions, int focus) {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
         LinearLayout box = new LinearLayout(this);
@@ -1053,23 +1195,28 @@ public class HomeActivity extends Activity {
         TextView question = new TextView(this);
         style(question, 22, 0xFFFFFFFF, "sans-serif-medium");
         question.setGravity(Gravity.CENTER);
-        question.setText("Open Amazon's home?");
+        question.setText(title);
         box.addView(question);
         TextView detail = new TextView(this);
         style(detail, 14, 0xD9FFFFFF, "sans-serif");
         detail.setGravity(Gravity.CENTER);
-        detail.setText("For the next 10 minutes, Home goes to Amazon's home instead of this screen.");
+        detail.setText(message);
         detail.setPadding(0, px(8), 0, px(16));
         detail.setMaxWidth(px(320));
         box.addView(detail);
-        TextView open = pill("Open Amazon's Home", v -> {
-            dialog.dismiss();
-            openAmazonHome();
-        });
+        TextView[] choices = new TextView[labels.length + 1];
+        for (int i = 0; i < labels.length; i++) {
+            Runnable action = actions[i];
+            choices[i] = pill(labels[i], v -> {
+                dialog.dismiss();
+                action.run();
+            });
+        }
         TextView cancel = pill("Cancel", v -> dialog.dismiss());
+        choices[labels.length] = cancel;
         box.setClipChildren(false);
         box.setClipToPadding(false);   // a lifted button reaches into the padding; clipped there, it lost its round ends
-        for (TextView choice : new TextView[] {open, cancel}) {
+        for (TextView choice : choices) {
             choice.setGravity(Gravity.CENTER);
             // tvOS alert buttons: rounded rectangles, white when focused, lifting less than a small pill would
             GradientDrawable idle = glass(12, false);
@@ -1094,7 +1241,7 @@ public class HomeActivity extends Activity {
             dialog.getWindow().setDimAmount(0.6f);
         }
         dialog.show();
-        cancel.requestFocus();
+        (focus >= 0 ? choices[focus] : cancel).requestFocus();
     }
 
     private TextView pill(String label, View.OnClickListener click) {

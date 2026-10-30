@@ -135,7 +135,7 @@ public class HomeWatcher extends Service {
         }
         lastLaunch = now;
         main.post(this::showOverlay);
-        startActivity(new Intent(this, HomeActivity.class)
+        startActivity(new Intent(this, HomeActivity.class).putExtra(HomeActivity.EXTRA_HOME_PRESSED, true)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
     }
 

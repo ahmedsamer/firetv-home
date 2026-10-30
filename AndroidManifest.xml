@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- granted over ADB: appops set com.firehome SYSTEM_ALERT_WINDOW allow -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- the TV input button: LG remote codes from the Cube's IR blaster -->
+    <uses-permission android:name="android.permission.TRANSMIT_IR" />
 
     <application
         android:label="@string/app_name"
