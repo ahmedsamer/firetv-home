@@ -4,4 +4,6 @@ build/
 *.jks
 
 # private: MQTT login for the Home Assistant bar
-assets/
+assets/*
+# the adhan's Arabic font (Amiri, OFL) ships with the app
+!assets/fonts/

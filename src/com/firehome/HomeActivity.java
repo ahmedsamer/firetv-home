@@ -142,6 +142,7 @@ public class HomeActivity extends Activity {
     private static final int AMBER = 0xFFFFB13B;
     // the clock sits top centre between the climate and the departures
     private static final int CLOCK_SP = 46;
+    private static final int ADHAN_SP = 30;   // the adhan's words under the clock
     private static final int DAY_TINT = 0xFF9EDDE2;   // the "27th" over the month: a pale cyan, a shade off the white
     private static final float CAP_HEIGHT = 0.71f;   // Roboto's capital height, as a share of the text size
     private static final float UNIT_SIZE = 0.7f;
@@ -176,6 +177,11 @@ public class HomeActivity extends Activity {
     private TextView salat;
     private String salatName = "";
     private long salatTs;   // epoch seconds of the next prayer, 0 when unknown
+    private TextView adhan;   // in the next prayer's place while the adhan is being recited
+    private boolean adhanFajr;
+    private long adhanStart;   // epoch ms the recording starts on the Echo, 0 when there is none
+    private int adhanShown = -1;
+    private final Runnable adhanTick = this::followAdhan;
     private Departures bus;
     private Departures metro;
     private TextView climateTemp;
@@ -269,6 +275,18 @@ public class HomeActivity extends Activity {
         clockColumn.addView(corner, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         clockColumn.addView(salat, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        // while the adhan plays on the Echo, the words being recited take the next prayer's place: Amiri Bold
+        // (classical Naskh, with its tashkeel), right to left
+        adhan = new TextView(this);
+        style(adhan, ADHAN_SP, 0xFFFFFFFF, "sans-serif");
+        adhan.setTypeface(Typeface.createFromAsset(getAssets(), "fonts/amiri-bold-adhan.ttf"));
+        adhan.setShadowLayer(px(12), 0, px(2), 0x80000000);
+        adhan.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        adhan.setTextDirection(View.TEXT_DIRECTION_RTL);
+        adhan.setGravity(Gravity.CENTER);
+        adhan.setVisibility(View.GONE);
+        clockColumn.addView(adhan, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(clockColumn, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
 
@@ -409,6 +427,8 @@ public class HomeActivity extends Activity {
                     metro.update(payload);
                 } else if (name.equals("salat")) {
                     showSalat(payload);
+                } else if (name.equals("adhan")) {
+                    showAdhan(payload);
                 }
             });
             showClimate(getSharedPreferences("climate", MODE_PRIVATE).getString("json", null), false);
@@ -667,6 +687,71 @@ public class HomeActivity extends Activity {
                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         salat.setText(line);
+    }
+
+    /**
+     * Home Assistant's {"fajr": true, "ts": the prayer time in epoch ms, "on": true}, from the Mawaqit calendar that
+     * is on from the adhan to the iqama; "on": false, or anything unreadable, ends it.
+     */
+    private void showAdhan(String payload) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            adhanFajr = json.optBoolean("fajr");
+            adhanStart = json.optBoolean("on") ? json.getLong("ts") + Adhan.START_DELAY_MS : 0;
+        } catch (org.json.JSONException e) {
+            adhanStart = 0;
+        }
+        followAdhan();
+    }
+
+    /** Shows the phrase being recited now and comes back when the next one starts; worked out from the clock alone. */
+    private void followAdhan() {
+        main.removeCallbacks(adhanTick);
+        long ms = adhanStart == 0 ? -1 : System.currentTimeMillis() - adhanStart;
+        int index = ms < 0 ? -1 : Adhan.indexAt(adhanFajr, ms);
+        long next = ms < 0 && adhanStart != 0 ? 0 : Adhan.nextChange(adhanFajr, Math.max(ms, 0));
+        if (index >= 0) {
+            showPhrase(index);
+        } else if (adhanShown >= 0) {
+            hideAdhan();
+        }
+        if (adhanStart != 0 && next >= 0) {
+            main.postDelayed(adhanTick, Math.max(50, next - ms));
+        }
+    }
+
+    /** The phrase in the next prayer's place: faded in, or cross-faded from the one before (a repeat too). */
+    private void showPhrase(int index) {
+        if (index == adhanShown) {
+            return;
+        }
+        String text = Adhan.phrase(adhanFajr, index);
+        adhan.animate().cancel();
+        if (adhanShown < 0) {
+            salat.setVisibility(View.GONE);
+            adhan.setText(text);
+            adhan.setAlpha(0f);
+            adhan.setVisibility(View.VISIBLE);
+            adhan.animate().alpha(1f).setDuration(500);
+        } else {
+            adhan.animate().alpha(0f).setDuration(200).withEndAction(() -> {
+                adhan.setText(text);
+                adhan.animate().alpha(1f).setDuration(300);
+            });
+        }
+        adhanShown = index;
+    }
+
+    /** Back to the next prayer once the recitation is over. */
+    private void hideAdhan() {
+        adhanShown = -1;
+        adhan.animate().cancel();
+        adhan.animate().alpha(0f).setDuration(400).withEndAction(() -> {
+            adhan.setVisibility(View.GONE);
+            salat.setAlpha(0f);
+            salat.setVisibility(View.VISIBLE);
+            salat.animate().alpha(1f).setDuration(400);
+        });
     }
 
     /** Today as "27th" (the day of the month with its English ordinal) and "Oct" (the month's short name). */
