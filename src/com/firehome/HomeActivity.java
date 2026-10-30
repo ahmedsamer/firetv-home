@@ -31,6 +31,8 @@ import android.view.PixelCopy;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -143,6 +145,10 @@ public class HomeActivity extends Activity {
     // the clock sits top centre between the climate and the departures
     private static final int CLOCK_SP = 46;
     private static final int ADHAN_SP = 30;   // the adhan's words under the clock
+    private static final int ADHAN_WIDTH_DP = 640;   // fixed, so the line doesn't jump as the phrases change length
+    private static final long PHRASE_OUT_MS = 500;
+    private static final long PHRASE_IN_MS = 900;
+    private static final int PHRASE_DRIFT_DP = 6;
     private static final int DAY_TINT = 0xFF9EDDE2;   // the "27th" over the month: a pale cyan, a shade off the white
     private static final float CAP_HEIGHT = 0.71f;   // Roboto's capital height, as a share of the text size
     private static final float UNIT_SIZE = 0.7f;
@@ -286,7 +292,7 @@ public class HomeActivity extends Activity {
         adhan.setTextDirection(View.TEXT_DIRECTION_RTL);
         adhan.setGravity(Gravity.CENTER);
         adhan.setVisibility(View.GONE);
-        clockColumn.addView(adhan, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        clockColumn.addView(adhan, new LinearLayout.LayoutParams(px(ADHAN_WIDTH_DP),
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(clockColumn, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
 
@@ -720,7 +726,10 @@ public class HomeActivity extends Activity {
         }
     }
 
-    /** The phrase in the next prayer's place: faded in, or cross-faded from the one before (a repeat too). */
+    /**
+     * The phrase in the next prayer's place. Each one drifts up a little as it fades in and away as it fades out,
+     * slowly, like tvOS's own text transitions; a repeat goes out and comes back the same way.
+     */
     private void showPhrase(int index) {
         if (index == adhanShown) {
             return;
@@ -728,30 +737,39 @@ public class HomeActivity extends Activity {
         String text = Adhan.phrase(adhanFajr, index);
         adhan.animate().cancel();
         if (adhanShown < 0) {
-            salat.setVisibility(View.GONE);
-            adhan.setText(text);
-            adhan.setAlpha(0f);
-            adhan.setVisibility(View.VISIBLE);
-            adhan.animate().alpha(1f).setDuration(500);
+            salat.animate().cancel();
+            salat.animate().alpha(0f).setDuration(PHRASE_OUT_MS).setInterpolator(new AccelerateInterpolator())
+                    .withEndAction(() -> {
+                        salat.setVisibility(View.GONE);
+                        adhan.setVisibility(View.VISIBLE);
+                        phraseIn(text);
+                    });
         } else {
-            adhan.animate().alpha(0f).setDuration(200).withEndAction(() -> {
-                adhan.setText(text);
-                adhan.animate().alpha(1f).setDuration(300);
-            });
+            adhan.animate().alpha(0f).translationY(-px(PHRASE_DRIFT_DP)).setDuration(PHRASE_OUT_MS)
+                    .setInterpolator(new AccelerateInterpolator()).withEndAction(() -> phraseIn(text));
         }
         adhanShown = index;
+    }
+
+    private void phraseIn(String text) {
+        adhan.setText(text);
+        adhan.setAlpha(0f);
+        adhan.setTranslationY(px(PHRASE_DRIFT_DP));
+        adhan.animate().alpha(1f).translationY(0f).setDuration(PHRASE_IN_MS)
+                .setInterpolator(new DecelerateInterpolator(1.5f));
     }
 
     /** Back to the next prayer once the recitation is over. */
     private void hideAdhan() {
         adhanShown = -1;
         adhan.animate().cancel();
-        adhan.animate().alpha(0f).setDuration(400).withEndAction(() -> {
-            adhan.setVisibility(View.GONE);
-            salat.setAlpha(0f);
-            salat.setVisibility(View.VISIBLE);
-            salat.animate().alpha(1f).setDuration(400);
-        });
+        adhan.animate().alpha(0f).translationY(-px(PHRASE_DRIFT_DP)).setDuration(PHRASE_OUT_MS)
+                .setInterpolator(new AccelerateInterpolator()).withEndAction(() -> {
+                    adhan.setVisibility(View.GONE);
+                    salat.setAlpha(0f);
+                    salat.setVisibility(View.VISIBLE);
+                    salat.animate().alpha(1f).setDuration(PHRASE_IN_MS).setInterpolator(new DecelerateInterpolator());
+                });
     }
 
     /** Today as "27th" (the day of the month with its English ordinal) and "Oct" (the month's short name). */
