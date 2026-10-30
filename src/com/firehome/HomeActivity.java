@@ -155,6 +155,11 @@ public class HomeActivity extends Activity {
     private static final float ADHAN_DIM = 0.35f;
     private static final long DISSOLVE_OUT_MS = 150;
     private static final long DISSOLVE_IN_MS = 250;
+    // from the next prayer to the adhan's first phrase: a full fade away, a beat of clear line, then the phrase
+    private static final long SALAT_OUT_MS = 600;
+    private static final long CLEAR_GAP_MS = 150;
+    private static final long PHRASE_FIRST_IN_MS = 450;
+    private static final long NOW_HOLD_MS = 60_000L;   // "Now" stays this long if no adhan comes
     private static final int DAY_TINT = 0xFF9EDDE2;   // the "27th" over the month: a pale cyan, a shade off the white
     private static final float CAP_HEIGHT = 0.71f;   // Roboto's capital height, as a share of the text size
     private static final float UNIT_SIZE = 0.7f;
@@ -190,6 +195,8 @@ public class HomeActivity extends Activity {
     private TextView salat;
     private String salatName = "";
     private final Runnable salatSecond = this::drawSalat;
+    private final Runnable salatPending = this::applyPendingSalat;
+    private String pendingSalat;   // the next prayer, held back while "Now" or the adhan has the line
     private long salatTs;   // epoch seconds of the next prayer, 0 when unknown
     private TextView adhan;   // in the next prayer's place while the adhan is being recited
     private boolean adhanFajr;
@@ -666,14 +673,44 @@ public class HomeActivity extends Activity {
 
     /** Home Assistant's {"name": "fajr", "ts": epoch seconds}; anything unreadable leaves the line as it was. */
     private void showSalat(String payload) {
+        String name;
+        long ts;
         try {
             org.json.JSONObject json = new org.json.JSONObject(payload);
-            salatName = json.getString("name");
-            salatTs = json.getLong("ts");
+            name = json.getString("name");
+            ts = json.getLong("ts");
         } catch (org.json.JSONException e) {
             return;
         }
+        // at the prayer time Mawaqit moves straight on to the next prayer; keep "Maghrib … Now" until the adhan
+        // takes the line (or NOW_HOLD_MS is up) instead of flashing "Isha" first
+        long now = System.currentTimeMillis();
+        boolean holding = salatTs > 0 && now >= salatTs * 1000 && now < salatTs * 1000 + NOW_HOLD_MS && ts != salatTs;
+        if (holding || adhanShown >= 0) {
+            pendingSalat = payload;
+            main.removeCallbacks(salatPending);
+            if (adhanShown < 0) {
+                main.postDelayed(salatPending, salatTs * 1000 + NOW_HOLD_MS - now);
+            }
+            return;
+        }
+        pendingSalat = null;
+        salatName = name;
+        salatTs = ts;
         drawSalat();
+    }
+
+    /** The next prayer that arrived while "Now" or the adhan had the line. */
+    private void applyPendingSalat() {
+        main.removeCallbacks(salatPending);
+        String payload = pendingSalat;
+        pendingSalat = null;
+        salatTs = 0;   // the held prayer is over
+        if (payload != null) {
+            showSalat(payload);
+        } else {
+            drawSalat();
+        }
     }
 
     /**
@@ -696,10 +733,19 @@ public class HomeActivity extends Activity {
         // minutes and seconds, "in 2:59", counting down every second (as iOS/tvOS timers end)
         long msLeft = salatTs * 1000 - System.currentTimeMillis();
         long left = (msLeft + 59_999L) / 60_000L;
-        if (left > 0 && left <= 30) {
+        if (msLeft <= 0 && msLeft > -NOW_HOLD_MS) {
+            // the countdown ends on "Now", until the adhan's words take the line
+            int start = line.length();
+            line.append("  Now");
+            line.setSpan(new android.text.style.ForegroundColorSpan(SALAT_NOW), start, line.length(),
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            line.setSpan(new android.text.style.RelativeSizeSpan(0.85f), start, line.length(),
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            main.postDelayed(salatSecond, NOW_HOLD_MS + msLeft);
+        } else if (left > 0 && left <= 30) {
             int start = line.length();
             if (msLeft <= SALAT_SECONDS_MS) {
-                long secs = (msLeft + 999) / 1000;
+                long secs = (msLeft + 999) / 1000;   // never 0: at 0 it is "Now"
                 line.append("  in ").append(secs / 60 + ":" + String.format(java.util.Locale.ENGLISH, "%02d", secs % 60));
                 main.postDelayed(salatSecond, msLeft - (secs - 1) * 1000);   // as the next second starts
             } else {
@@ -789,15 +835,20 @@ public class HomeActivity extends Activity {
 
     /** A quick dissolve into the new phrase: out from wherever the line is (the next prayer, or a dimmed phrase). */
     private void dissolveTo(CharSequence text) {
-        TextView from = adhan.getVisibility() == View.VISIBLE ? adhan : salat;
+        boolean first = adhan.getVisibility() != View.VISIBLE;
+        TextView from = first ? salat : adhan;
         adhan.animate().cancel();
         salat.animate().cancel();
-        from.animate().alpha(0f).setDuration(DISSOLVE_OUT_MS).setInterpolator(new AccelerateInterpolator())
+        // the next prayer ("… Now") fades away completely first, so the first phrase comes in on a clear line
+        from.animate().alpha(0f).setDuration(first ? SALAT_OUT_MS : DISSOLVE_OUT_MS)
+                .setInterpolator(new AccelerateInterpolator())
                 .withEndAction(() -> {
                     salat.setVisibility(View.GONE);
                     adhan.setText(text);
+                    adhan.setAlpha(0f);
                     adhan.setVisibility(View.VISIBLE);
-                    adhan.animate().alpha(1f).setDuration(DISSOLVE_IN_MS).setInterpolator(new DecelerateInterpolator());
+                    adhan.animate().alpha(1f).setDuration(first ? PHRASE_FIRST_IN_MS : DISSOLVE_IN_MS)
+                            .setStartDelay(first ? CLEAR_GAP_MS : 0).setInterpolator(new DecelerateInterpolator());
                 });
     }
 
@@ -810,6 +861,7 @@ public class HomeActivity extends Activity {
         adhan.animate().alpha(0f).setDuration(DISSOLVE_OUT_MS).setInterpolator(new AccelerateInterpolator())
                 .withEndAction(() -> {
                     adhan.setVisibility(View.GONE);
+                    applyPendingSalat();
                     salat.setAlpha(0f);
                     salat.setVisibility(View.VISIBLE);
                     salat.animate().alpha(1f).setDuration(DISSOLVE_IN_MS).setInterpolator(new DecelerateInterpolator());
