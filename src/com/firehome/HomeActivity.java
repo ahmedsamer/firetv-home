@@ -147,6 +147,10 @@ public class HomeActivity extends Activity {
     private static final float UNIT_SIZE = 0.7f;
     private static final int COLDER = 0xFF8CCBFF;
     private static final int WARMER = 0xFFFF9A7A;
+    // the time left to the next prayer, shown only in its last half hour: soft green, then the bar's yellow, then red
+    private static final int SALAT_SOON = 0xFF8EE68A;
+    private static final int SALAT_NEAR = 0xFFFFC857;
+    private static final int SALAT_NOW = 0xFFFF6B6B;
     private static final int CLIMATE_SP = 37;   // the indoor temperature; the rest of the corner scales with it
     private static final int ICON_BUTTON_DP = 33;   // the Appstore, Settings and Fire TV buttons: as big as a room's
     private static final long OUTSIDE_MAX_AGE_MS = 60 * 60 * 1000L;
@@ -637,8 +641,8 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * The next prayer as "Fajr  4:59 AM  in 1h 23m": the name in the day's pale cyan, the time left dimmer and
-     * amber in the last 10 minutes, counting down with the clock.
+     * The next prayer as "Fajr  4:59 AM  in 23m": the name in the day's pale cyan, and in its last 30 minutes the
+     * time left, counting down with the clock: green to 20, yellow to 10, red to the adhan.
      */
     private void drawSalat() {
         if (salatName.isEmpty() || salatTs <= 0) {
@@ -653,10 +657,11 @@ public class HomeActivity extends Activity {
         line.append("  ").append(time);
         // whole minutes left, rounded up so it reads "in 1m" up to the minute itself
         long left = (salatTs * 1000 - System.currentTimeMillis() + 59_999L) / 60_000L;
-        if (left > 0) {
+        if (left > 0 && left <= 30) {
             int start = line.length();
-            line.append("  in ").append(left >= 60 ? (left / 60) + "h " + (left % 60) + "m" : left + "m");
-            line.setSpan(new android.text.style.ForegroundColorSpan(left <= 10 ? AMBER : 0x99FFFFFF), start,
+            line.append("  in ").append(left + "m");
+            line.setSpan(new android.text.style.ForegroundColorSpan(
+                    left > 20 ? SALAT_SOON : left > 10 ? SALAT_NEAR : SALAT_NOW), start,
                     line.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             line.setSpan(new android.text.style.RelativeSizeSpan(0.85f), start, line.length(),
                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
