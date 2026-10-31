@@ -204,6 +204,7 @@ public class HomeActivity extends Activity {
     private int adhanShown = -1;
     private boolean adhanFading;   // the shown phrase is fading out over the pause after it
     private final Runnable adhanTick = this::followAdhan;
+    private Notices notices;
     private Departures bus;
     private Departures metro;
     private TextView climateTemp;
@@ -312,6 +313,9 @@ public class HomeActivity extends Activity {
         clockColumn.addView(adhan, new LinearLayout.LayoutParams(px(ADHAN_WIDTH_DP),
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(clockColumn, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 30));
+        // under the clock and the next prayer, the odd thing worth a glance (Notices); clear of the adhan's taller line
+        notices = new Notices(this, dp);
+        root.addView(notices.view(), at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 146));
 
         // the indoor climate from Home Assistant, top left, a little smaller than the clock; empty until there is
         // something to show
@@ -452,6 +456,12 @@ public class HomeActivity extends Activity {
                     showSalat(payload);
                 } else if (name.equals("adhan")) {
                     showAdhan(payload);
+                } else if (name.equals("alert")) {
+                    notices.alert(payload);
+                } else if (name.equals("warning")) {
+                    notices.warning(payload);
+                } else if (name.equals("vacuum")) {
+                    notices.vacuum(payload);
                 }
             });
             showClimate(getSharedPreferences("climate", MODE_PRIVATE).getString("json", null), false);
