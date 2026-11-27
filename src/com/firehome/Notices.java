@@ -30,7 +30,7 @@ final class Notices {
     private static final int VACUUM = 0xFF8EE68A;   // the prayer countdown's soft green
     private static final int NEWS = 0xFF7FB2FF;     // police blue
     private static final int NEWS_DATE = 0xFF9EDDE2;   // the clock's pale cyan day (only shown when not today); the time takes the dot's blue
-    private static final long NEWS_GLANCE_MS = 5 * 60_000L;   // how long the news shows after a Home press
+    private static final long NEWS_GLANCE_MS = 2 * 60_000L;   // how long the news shows after a Home press
     private static final int NEWS_TEXT_MAX_DP = 270;   // with date, time and counter the pill stays inside the ~476 dp between the corners
     private static final long NEWS_ROTATE_MS = 10_000L;   // each report's turn when there are several
     private static final int NEWS_COUNT = 0x99FFFFFF;     // the "1/3" counter, dim white
@@ -167,7 +167,7 @@ final class Notices {
     /**
      * {"items": [{"text": "Mitte: Cyclist hurt in traffic accident", "ts": epoch s, "end": epoch s}, ...]}: the
      * district's police reports of the last 12 h, newest first (berlin.de, translated by Home Assistant). Shown above
-     * the clock for five minutes after each Home press, one at a time when there are several.
+     * the clock for two minutes after each Home press, one at a time when there are several.
      */
     void news(String payload) {
         lastNews = payload;

@@ -565,7 +565,7 @@ public class HomeActivity extends Activity {
             return;
         }
         HomeWatcher.pause(0);   // back from Settings or Amazon's home: Home brings this screen up again
-        notices.homeShown();   // the district's police news, for five minutes
+        notices.homeShown();   // the district's police news, for two minutes
         View focus = fillRow();   // apps may have been installed or removed while we were away
         if (focus != null) {
             focus.requestFocus();
