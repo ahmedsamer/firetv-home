@@ -29,7 +29,7 @@ final class Notices {
     private static final int HEAT = 0xFFFF9A7A;   // and its "warmer" coral
     private static final int VACUUM = 0xFF8EE68A;   // the prayer countdown's soft green
     private static final int NEWS = 0xFF7FB2FF;     // police blue
-    private static final int NEWS_DATE = 0xFF9EDDE2;   // the clock's pale cyan day; the time takes the dot's blue
+    private static final int NEWS_DATE = 0xFF9EDDE2;   // the clock's pale cyan day (only shown when not today); the time takes the dot's blue
     private static final int NEWS_TEXT_MAX_DP = 310;   // with the date, the pill stays inside the ~476 dp between the corners
     private static final int AMBER = 0xFFFFB13B;
     // DWD's own levels: 2 orange (markant), 3 red (unwetter), 4 violet (extremes unwetter)
@@ -46,6 +46,8 @@ final class Notices {
     private final Runnable alertOver;
     private final Runnable warningOver;
     private final Runnable newsOver;
+    private final Runnable newsMidnight;
+    private String lastNews;
     private final LinearLayout top;
     private java.util.function.Consumer<Boolean> newsListener;
 
@@ -67,6 +69,11 @@ final class Notices {
         alertOver = () -> alert.hide();
         warningOver = () -> warning.hide();
         newsOver = () -> showNews(null, null);
+        newsMidnight = () -> {
+            if (lastNews != null) {
+                news(lastNews);
+            }
+        };
     }
 
     View view() {
@@ -169,6 +176,7 @@ final class Notices {
             return;
         }
         main.removeCallbacks(newsOver);
+        main.removeCallbacks(newsMidnight);
         long left = end * 1000 - System.currentTimeMillis();
         if (text.isEmpty() || (end > 0 && left <= 0)) {
             showNews(null, null);
@@ -177,12 +185,21 @@ final class Notices {
         CharSequence when = null;
         if (ts > 0) {
             java.util.Date at = new java.util.Date(ts * 1000);
-            String day = new java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).format(at);
             String time = new java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(at);
-            android.text.SpannableStringBuilder b = new android.text.SpannableStringBuilder(day + "  " + time);
-            b.setSpan(new android.text.style.ForegroundColorSpan(NEWS_DATE), 0, day.length(), 0);
-            b.setSpan(new android.text.style.ForegroundColorSpan(NEWS), day.length() + 2, b.length(), 0);
-            when = b;
+            if (sameDay(ts)) {
+                // today's: the time alone; at midnight it is drawn again and gains its date
+                android.text.SpannableString t = new android.text.SpannableString(time);
+                t.setSpan(new android.text.style.ForegroundColorSpan(NEWS), 0, time.length(), 0);
+                when = t;
+                lastNews = payload;
+                main.postDelayed(newsMidnight, untilMidnight());
+            } else {
+                String day = new java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).format(at);
+                android.text.SpannableStringBuilder b = new android.text.SpannableStringBuilder(day + "  " + time);
+                b.setSpan(new android.text.style.ForegroundColorSpan(NEWS_DATE), 0, day.length(), 0);
+                b.setSpan(new android.text.style.ForegroundColorSpan(NEWS), day.length() + 2, b.length(), 0);
+                when = b;
+            }
         }
         if (end > 0) {
             main.postDelayed(newsOver, left);
@@ -200,6 +217,16 @@ final class Notices {
         if (newsListener != null) {
             newsListener.accept(text != null);
         }
+    }
+
+    private static long untilMidnight() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        c.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        c.set(java.util.Calendar.MINUTE, 0);
+        c.set(java.util.Calendar.SECOND, 5);
+        c.set(java.util.Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis() - System.currentTimeMillis();
     }
 
     private static boolean sameDay(long epochSeconds) {
