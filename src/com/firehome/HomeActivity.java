@@ -19,6 +19,7 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.TransitionDrawable;
 import android.os.Bundle;
@@ -62,7 +63,8 @@ public class HomeActivity extends Activity {
     private static final String OOBE_RESOURCES = "com.amazon.tv.ooberesource";   // holds the Fire TV logo
     private static final List<String> PINNED = Arrays.asList(
             "com.amazon.firetv.youtube", "net.mbc.shahidTV", "com.watchit.vod", "org.clipbox.player",
-            "com.sneig.livedrama", "org.videolan.vlc", "com.retroarch", "com.esaba.downloader");
+            "com.sneig.livedrama", "org.videolan.vlc", "com.retroarch", "com.esaba.downloader",
+            "org.smarttube.stable");
     // every tile is the app's logo on a gradient in its colours, tvOS-style: (top colour, bottom colour, glow behind
     // the logo, mode). LOGO draws an adaptive icon's logo layer alone. WHITE is for artwork on its own white square:
     // a white tile, with the icon multiplied onto it so its white square takes the tile's gradient and disappears.
@@ -79,6 +81,8 @@ public class HomeActivity extends Activity {
     private static final int NEWS_SHIFT_DP = 34;   // how far the clock column moves down while it shows
     private static final int[] LOGO_DEFAULT = {0xFF2A3448, 0xFF0E1320, 0x40FFFFFF, ICON};
     static {
+        // SmartTube: red TV + white S on a white square, the same artwork style as YouTube's
+        LOGO_TILES.put("org.smarttube.stable", new int[] {0xFFFFFFFF, 0xFFE2E6EE, 0x26FF2A2A, WHITE});
         LOGO_TILES.put("com.amazon.firetv.youtube", new int[] {0xFFFFFFFF, 0xFFE2E6EE, 0x26FF2A2A, WHITE});
         LOGO_TILES.put("net.mbc.shahidTV", new int[] {0xFF0B3B33, 0xFF04140F, 0x7300D68F, MASK});
         LOGO_TILES.put("com.watchit.vod", new int[] {0xFF2E250A, 0xFF0D0A03, 0x73F0B429, LOGO});
@@ -104,6 +108,7 @@ public class HomeActivity extends Activity {
     // caption and line shown above the row for the focused app; others get a plain fallback
     private static final Map<String, String[]> ABOUT = new HashMap<>();
     static {
+        ABOUT.put("org.smarttube.stable", new String[] {"WATCH NOW", "YouTube without ads."});
         ABOUT.put("com.amazon.firetv.youtube", new String[] {"WATCH NOW", "Videos, music and live streams."});
         ABOUT.put("net.mbc.shahidTV", new String[] {"WATCH NOW", "Arabic series, films and live TV."});
         ABOUT.put("com.watchit.vod", new String[] {"WATCH NOW", "Egyptian series and films."});
@@ -1097,7 +1102,10 @@ public class HomeActivity extends Activity {
             return art;
         }
 
-        Drawable picture = mode == WHITE ? (adaptive != null ? layers(adaptive) : icon)
+        // WHITE: backed by white, so artwork whose "white square" is really transparent (SmartTube) still
+        // disappears when multiplied — a transparent pixel would multiply to black
+        Drawable picture = mode == WHITE ? new LayerDrawable(new Drawable[] {
+                    new ColorDrawable(0xFFFFFFFF), adaptive != null ? layers(adaptive) : icon})
                 : mode == MASK ? whiteLogo(adaptive != null ? layers(adaptive) : icon)
                 : adaptive.getForeground();
         String key = ri.activityInfo.packageName;
