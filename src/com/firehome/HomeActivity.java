@@ -77,6 +77,8 @@ public class HomeActivity extends Activity {
     private static final int LOGO_DP = 62;
     private static final int[] LOGO_DEFAULT = {0xFF2A3448, 0xFF0E1320, 0x40FFFFFF, ICON};
     static {
+    private static final int NEWS_TOP_DP = 10;     // the police-news pill, above the clock
+    private static final int NEWS_SHIFT_DP = 34;   // how far the clock column moves down while it shows
         LOGO_TILES.put("com.amazon.firetv.youtube", new int[] {0xFFFFFFFF, 0xFFE2E6EE, 0x26FF2A2A, WHITE});
         LOGO_TILES.put("net.mbc.shahidTV", new int[] {0xFF0B3B33, 0xFF04140F, 0x7300D68F, MASK});
         LOGO_TILES.put("com.watchit.vod", new int[] {0xFF2E250A, 0xFF0D0A03, 0x73F0B429, LOGO});
@@ -321,6 +323,19 @@ public class HomeActivity extends Activity {
         // something to show
         LinearLayout climate = new LinearLayout(this);
         this.climate = climate;
+        // the district's police news sits above the clock; while it is up, the clock, the prayer line and the
+        // notices slide down to make room
+        root.addView(notices.newsView(), at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, NEWS_TOP_DP));
+        final View clockForNews = clockColumn;
+        notices.onNews(shown -> {
+            float y = shown ? px(NEWS_SHIFT_DP) : 0;
+            for (View v : new View[] {clockForNews, notices.view()}) {
+                if (v.getTranslationY() != y) {
+                    v.animate().translationY(y).setDuration(400)
+                            .setInterpolator(new android.view.animation.DecelerateInterpolator());
+                }
+            }
+        });
         climate.setOrientation(LinearLayout.VERTICAL);
         climate.setGravity(Gravity.START);
         LinearLayout now = new LinearLayout(this);

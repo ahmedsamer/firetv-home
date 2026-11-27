@@ -29,6 +29,8 @@ final class Notices {
     private static final int HEAT = 0xFFFF9A7A;   // and its "warmer" coral
     private static final int VACUUM = 0xFF8EE68A;   // the prayer countdown's soft green
     private static final int NEWS = 0xFF7FB2FF;     // police blue
+    private static final int NEWS_DATE = 0xFF9EDDE2;   // the clock's pale cyan day; the time takes the dot's blue
+    private static final int NEWS_TEXT_MAX_DP = 310;   // with the date, the pill stays inside the ~476 dp between the corners
     private static final int AMBER = 0xFFFFB13B;
     // DWD's own levels: 2 orange (markant), 3 red (unwetter), 4 violet (extremes unwetter)
     private static final int[] WARNING = {AMBER, AMBER, AMBER, 0xFFFF6B6B, 0xFFC77DFF};
@@ -44,6 +46,8 @@ final class Notices {
     private final Runnable alertOver;
     private final Runnable warningOver;
     private final Runnable newsOver;
+    private final LinearLayout top;
+    private java.util.function.Consumer<Boolean> newsListener;
 
     Notices(Context context, float dp) {
         this.context = context;
@@ -51,17 +55,32 @@ final class Notices {
         column = new LinearLayout(context);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setGravity(Gravity.CENTER_HORIZONTAL);
-        alert = new Pill();
-        warning = new Pill();
-        vacuum = new Pill();
-        news = new Pill();
+        alert = new Pill(column);
+        warning = new Pill(column);
+        vacuum = new Pill(column);
+        top = new LinearLayout(context);
+        top.setOrientation(LinearLayout.VERTICAL);
+        top.setGravity(Gravity.CENTER_HORIZONTAL);
+        news = new Pill(top);
+        // clear of the departures in the top-right corner: a long headline is cut, the date never is
+        news.text.setMaxWidth(px(NEWS_TEXT_MAX_DP));
         alertOver = () -> alert.hide();
         warningOver = () -> warning.hide();
-        newsOver = () -> news.hide();
+        newsOver = () -> showNews(null, null);
     }
 
     View view() {
         return column;
+    }
+
+    /** The news pill's own place, above the clock. */
+    View newsView() {
+        return top;
+    }
+
+    /** Told true while the news pill is up, so the clock and everything under it can make room. */
+    void onNews(java.util.function.Consumer<Boolean> listener) {
+        newsListener = listener;
     }
 
     /** {"kind": "mail" | "rain" | "heat", "text": "..."}: shown for ALERT_MS, a newer one takes its place. */
@@ -135,7 +154,7 @@ final class Notices {
 
     /**
      * {"text": "Cyclist badly injured in Mitte", "ts": epoch seconds, "end": epoch seconds}: the newest police report
-     * for the district (berlin.de, translated by Home Assistant), shown with its time until end.
+     * for the district (berlin.de, translated by Home Assistant), shown above the clock with its date and time until end.
      */
     void news(String payload) {
         String text;
@@ -152,17 +171,35 @@ final class Notices {
         main.removeCallbacks(newsOver);
         long left = end * 1000 - System.currentTimeMillis();
         if (text.isEmpty() || (end > 0 && left <= 0)) {
-            news.hide();
+            showNews(null, null);
             return;
         }
+        CharSequence when = null;
         if (ts > 0) {
-            text += "  · " + new java.text.SimpleDateFormat(sameDay(ts) ? "h:mm a" : "EEE h:mm a",
-                    java.util.Locale.ENGLISH).format(new java.util.Date(ts * 1000));
+            java.util.Date at = new java.util.Date(ts * 1000);
+            String day = new java.text.SimpleDateFormat("d MMM", java.util.Locale.ENGLISH).format(at);
+            String time = new java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(at);
+            android.text.SpannableStringBuilder b = new android.text.SpannableStringBuilder(day + "  " + time);
+            b.setSpan(new android.text.style.ForegroundColorSpan(NEWS_DATE), 0, day.length(), 0);
+            b.setSpan(new android.text.style.ForegroundColorSpan(NEWS), day.length() + 2, b.length(), 0);
+            when = b;
         }
         if (end > 0) {
             main.postDelayed(newsOver, left);
         }
-        news.show(NEWS, text);
+        showNews(text, when);
+    }
+
+    /** null hides the news pill. */
+    private void showNews(String text, CharSequence when) {
+        if (text == null) {
+            news.hide();
+        } else {
+            news.show(NEWS, text, when);
+        }
+        if (newsListener != null) {
+            newsListener.accept(text != null);
+        }
     }
 
     private static boolean sameDay(long epochSeconds) {
@@ -182,8 +219,9 @@ final class Notices {
         private final LinearLayout view;
         private final GradientDrawable dot;
         private final TextView text;
+        private final TextView detail;
 
-        Pill() {
+        Pill(LinearLayout parent) {
             view = new LinearLayout(context);
             view.setGravity(Gravity.CENTER_VERTICAL);
             view.setPadding(px(14), px(7), px(18), px(7));
@@ -204,17 +242,35 @@ final class Notices {
             text.setTextColor(0xF2FFFFFF);
             text.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             text.setSingleLine();
+            text.setEllipsize(android.text.TextUtils.TruncateAt.END);
             view.addView(text);
+            detail = new TextView(context);
+            detail.setTextSize(12);   // the news date and time: smaller than the text, coloured per part
+            detail.setTextColor(0xB3FFFFFF);
+            detail.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+            detail.setSingleLine();
+            detail.setVisibility(View.GONE);
+            LinearLayout.LayoutParams detailLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            detailLp.setMargins(px(10), 0, 0, 0);
+            view.addView(detail, detailLp);
             view.setVisibility(View.GONE);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.setMargins(0, 0, 0, px(8));
-            column.addView(view, lp);
+            parent.addView(view, lp);
         }
 
         void show(int colour, String line) {
+            show(colour, line, null);
+        }
+
+        /** detail: a dimmer label after the text that is never cut off (the text is, at its max width). */
+        void show(int colour, String line, CharSequence extra) {
             dot.setColor(colour);
             text.setText(line);
+            detail.setText(extra == null ? "" : extra);
+            detail.setVisibility(extra == null ? View.GONE : View.VISIBLE);
             if (view.getVisibility() == View.VISIBLE && view.getAlpha() == 1f) {
                 return;
             }
