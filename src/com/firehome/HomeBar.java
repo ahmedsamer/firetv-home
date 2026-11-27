@@ -34,15 +34,15 @@ class HomeBar {
     /**
      * Topics that are not devices: the indoor climate (firetv/state/climate), the departures (firetv/state/bus,
      * firetv/state/metro), the next prayer (firetv/state/salat), the adhan being recited (firetv/state/adhan) and
-     * the notices under them (firetv/state/alert, firetv/state/warning, firetv/state/vacuum), handed over by name
-     * with their raw JSON payload.
+     * the notices under them (firetv/state/alert, firetv/state/warning, firetv/state/vacuum, firetv/state/news),
+     * handed over by name with their raw JSON payload.
      */
     interface Extra {
         void message(String name, String payload);
     }
 
     private static final List<String> EXTRAS = java.util.Arrays.asList("climate", "bus", "metro", "salat",
-            "adhan", "alert", "warning", "vacuum");
+            "adhan", "alert", "warning", "vacuum", "news");
 
     private static final Pattern STATE = Pattern.compile("['\"]state['\"]\\s*:\\s*['\"]([a-z_]+)['\"]");
     private static final Pattern POSITION = Pattern.compile("['\"]position['\"]\\s*:\\s*(-?\\d+)");

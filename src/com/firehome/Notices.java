@@ -16,7 +16,8 @@ import android.widget.TextView;
 /**
  * Things worth a glance, centred under the clock as small frosted pills (tvOS's banners): a one-off alert from Home
  * Assistant (mail, rain on a tilted window, heating with a window open) that goes away on its own after a few
- * seconds, a DWD weather warning of level 2 or more for as long as it lasts, and the robot vacuum while it is out.
+ * seconds, a DWD weather warning of level 2 or more for as long as it lasts, the robot vacuum while it is out, and
+ * the latest police report for the district for a few hours.
  * Nothing shows when there is nothing to say.
  */
 final class Notices {
@@ -27,6 +28,7 @@ final class Notices {
     private static final int RAIN = 0xFF8CCBFF;   // the climate corner's "cooler" blue
     private static final int HEAT = 0xFFFF9A7A;   // and its "warmer" coral
     private static final int VACUUM = 0xFF8EE68A;   // the prayer countdown's soft green
+    private static final int NEWS = 0xFF7FB2FF;     // police blue
     private static final int AMBER = 0xFFFFB13B;
     // DWD's own levels: 2 orange (markant), 3 red (unwetter), 4 violet (extremes unwetter)
     private static final int[] WARNING = {AMBER, AMBER, AMBER, 0xFFFF6B6B, 0xFFC77DFF};
@@ -37,9 +39,11 @@ final class Notices {
     private final Pill alert;
     private final Pill warning;
     private final Pill vacuum;
+    private final Pill news;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable alertOver;
     private final Runnable warningOver;
+    private final Runnable newsOver;
 
     Notices(Context context, float dp) {
         this.context = context;
@@ -50,8 +54,10 @@ final class Notices {
         alert = new Pill();
         warning = new Pill();
         vacuum = new Pill();
+        news = new Pill();
         alertOver = () -> alert.hide();
         warningOver = () -> warning.hide();
+        newsOver = () -> news.hide();
     }
 
     View view() {
@@ -125,6 +131,38 @@ final class Notices {
         } else {
             vacuum.hide();
         }
+    }
+
+    /**
+     * {"text": "Cyclist badly injured in Mitte", "ts": epoch seconds, "end": epoch seconds}: the newest police report
+     * for the district (berlin.de, translated by Home Assistant), shown with its time until end.
+     */
+    void news(String payload) {
+        String text;
+        long ts;
+        long end;
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            text = json.optString("text").trim();
+            ts = json.optLong("ts");
+            end = json.optLong("end");
+        } catch (org.json.JSONException e) {
+            return;
+        }
+        main.removeCallbacks(newsOver);
+        long left = end * 1000 - System.currentTimeMillis();
+        if (text.isEmpty() || (end > 0 && left <= 0)) {
+            news.hide();
+            return;
+        }
+        if (ts > 0) {
+            text += "  · " + new java.text.SimpleDateFormat(sameDay(ts) ? "h:mm a" : "EEE h:mm a",
+                    java.util.Locale.ENGLISH).format(new java.util.Date(ts * 1000));
+        }
+        if (end > 0) {
+            main.postDelayed(newsOver, left);
+        }
+        news.show(NEWS, text);
     }
 
     private static boolean sameDay(long epochSeconds) {

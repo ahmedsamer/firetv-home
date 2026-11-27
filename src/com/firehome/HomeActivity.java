@@ -462,6 +462,8 @@ public class HomeActivity extends Activity {
                     notices.warning(payload);
                 } else if (name.equals("vacuum")) {
                     notices.vacuum(payload);
+                } else if (name.equals("news")) {
+                    notices.news(payload);
                 }
             });
             showClimate(getSharedPreferences("climate", MODE_PRIVATE).getString("json", null), false);
