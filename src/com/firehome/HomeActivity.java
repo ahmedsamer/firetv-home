@@ -537,6 +537,9 @@ public class HomeActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         homePressed(intent);
+        if (!stepAside) {
+            notices.homeShown();   // Home while already here: the news shows again too
+        }
     }
 
     /**
@@ -562,6 +565,7 @@ public class HomeActivity extends Activity {
             return;
         }
         HomeWatcher.pause(0);   // back from Settings or Amazon's home: Home brings this screen up again
+        notices.homeShown();   // the district's police news, for five minutes
         View focus = fillRow();   // apps may have been installed or removed while we were away
         if (focus != null) {
             focus.requestFocus();
@@ -577,6 +581,7 @@ public class HomeActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        notices.homeHidden();
         main.removeCallbacks(refreshWeather);
         main.removeCallbacks(followSun);
         main.removeCallbacks(trimGpu);
